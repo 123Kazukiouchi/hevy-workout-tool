@@ -1,0 +1,2526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HEVY ワークアウト登録ツール v6.3（未来対応）</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#131a22; --ink:#e6eef7; --muted:#a9b6c6; --acc:#4aa3ff; --danger:#ff5566; --ok:#15c27a; --step-inactive:#1e2a36; --step-active:#4aa3ff; --step-complete:#15c27a; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:12px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif; background: var(--bg); color: var(--ink); max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 1.2rem; margin: 0 0 4px; }
+    .subtitle { color: var(--muted); margin-bottom: 12px; font-size: 0.85rem; }
+    
+    /* ステップインジケーター */
+    .step-indicator { display: flex; justify-content: space-between; margin-bottom: 12px; padding: 0 5px; }
+    .step { flex: 1; text-align: center; position: relative; }
+    .step:not(:last-child)::after { content: ''; position: absolute; top: 16px; left: 50%; width: 100%; height: 2px; background: var(--step-inactive); z-index: -1; }
+    .step.complete:not(:last-child)::after { background: var(--step-complete); }
+    .step-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--step-inactive); border: 2px solid var(--step-inactive); color: var(--muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 4px; font-weight: 700; transition: all 0.3s; font-size: 0.8rem; }
+    .step.active .step-circle { background: var(--step-active); border-color: var(--step-active); color: #fff; box-shadow: 0 0 20px rgba(74, 163, 255, 0.4); }
+    .step.complete .step-circle { background: var(--step-complete); border-color: var(--step-complete); color: #fff; }
+    .step.complete .step-circle::before { content: '✓'; }
+    .step-label { font-size: 0.7rem; color: var(--muted); }
+    .step.active .step-label { color: var(--acc); font-weight: 600; }
+    .step.complete .step-label { color: var(--ok); }
+    
+    /* カードスタイル */
+    .card { background: var(--card); border: 1px solid #1e2a36; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+    .card.collapsed .card-content { display: none; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 8px; }
+    .card-header h2 { margin: 0; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; }
+    .card-header .status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .status-badge.pending { background: #1e2a36; color: var(--muted); }
+    .status-badge.complete { background: rgba(21, 194, 122, 0.2); color: var(--ok); border: 1px solid var(--ok); }
+    .status-badge.active { background: rgba(74, 163, 255, 0.2); color: var(--acc); border: 1px solid var(--acc); }
+    .expand-icon { color: var(--muted); transition: transform 0.3s; }
+    .card.collapsed .expand-icon { transform: rotate(180deg); }
+    
+    /* フォーム要素 */
+    label { font-size: .75rem; color: var(--muted); display:block; margin-bottom: 2px; }
+    input[type="text"], input[type="number"], input[type="datetime-local"], textarea { width:100%; padding:6px 8px; border-radius:6px; border:1px solid #263648; background:#0e141b; color:var(--ink); outline:none; transition: border-color 0.3s; font-size: 0.85rem; }
+    input:focus, textarea:focus { border-color: var(--acc); }
+    input.valid { border-color: var(--ok); }
+    textarea { min-height:60px; resize:vertical; }
+    .row { display:flex; gap:6px; margin-bottom: 6px; }
+    .row > * { flex:1; }
+    
+    /* ボタン */
+    .btn { appearance:none; border:1px solid #29425c; background:#112132; color:var(--ink); padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:600; transition: all 0.3s; font-size: 0.8rem; }
+    .btn:hover { border-color:#3b5f83; transform: translateY(-1px); }
+    .btn.primary { background: linear-gradient(180deg, #1b4b7a, #153a5e); border-color:#2f5e8a; }
+    .btn.success { background: linear-gradient(180deg, #0e6f45, #0a5234); border-color:#15c27a; }
+    .btn.ghost { background:transparent; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    
+    /* その他 */
+    .tips { font-size:.8rem; color: var(--muted); line-height:1.5; background: #0e141b; padding: 8px; border-radius: 6px; border-left: 3px solid var(--acc); }
+    .ok { color: var(--ok); }
+    .err { color: var(--danger); }
+    .info-box { background: rgba(74, 163, 255, 0.1); border: 1px solid rgba(74, 163, 255, 0.3); padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 0.85rem; }
+    .success-box { background: rgba(21, 194, 122, 0.1); border: 1px solid rgba(21, 194, 122, 0.3); padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 0.85rem; }
+    
+    .exercise { border:1px dashed #2a3e53; padding:8px; border-radius:6px; margin-top:6px; }
+    .set { background:#0f1821; border:1px solid #213143; padding:4px 6px; border-radius:6px; margin-bottom: 4px; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0e141b; border:1px solid #1f2b36; padding:8px; border-radius:8px; font-size: 0.75rem; max-height: 300px; overflow: auto; }
+    
+    /* モーダル */
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; }
+    .modal.show { display:flex; }
+    .modal-content { background:var(--card); border:1px solid #2a3e53; border-radius:14px; padding:24px; max-width:90%; max-height:90%; overflow:auto; }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .modal-header h2 { margin:0; }
+    .close-btn { background:transparent; border:none; color:var(--muted); font-size:1.5rem; cursor:pointer; padding:0; width:32px; height:32px; }
+    .close-btn:hover { color:var(--ink); }
+    .search-box { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #263648; background:#0e141b; color:var(--ink); margin-bottom:12px; }
+    .template-table { width:100%; border-collapse:collapse; }
+    .template-table th { background:#0e141b; padding:10px; text-align:left; border-bottom:2px solid #2a3e53; }
+    .template-table td { padding:10px; border-bottom:1px solid #1e2a36; }
+    .template-table tr:hover { background:#1a2332; }
+    .copy-id-btn { background:#1b4b7a; border:1px solid #2f5e8a; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.8rem; }
+    .copy-id-btn:hover { background:#2a5a8a; }
+    .favorite-star { cursor:pointer; font-size:1.2rem; }
+    .favorite-star.active { color:#ffd700; }
+    
+    .match-suggestion { background:#1a2332; border:1px solid #2a3e53; border-radius:8px; padding:12px; margin-top:8px; }
+    .match-suggestion h4 { margin:0 0 8px; font-size:0.9rem; color:#aed4ff; }
+    .suggestion-list { display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
+    .suggestion-item { background:#0f1821; border:1px solid #213143; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.85rem; transition: all 0.2s; }
+    .suggestion-item:hover { border-color:#4aa3ff; background:#1a2a3a; }
+    .suggestion-item.selected { border-color:#15c27a; background:#0a2a1a; }
+    .suggestion-score { color:#a9b6c6; font-size:0.75rem; margin-left:8px; }
+    
+    /* 💎 インライン候補リスト */
+    .inline-suggestions { background:#0e141b; border:1px solid #2a3e53; border-radius:6px; padding:6px; margin-top:6px; max-height:150px; overflow-y:auto; }
+    .inline-suggestion-item { background:#1a2332; border:1px solid #2a3e53; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem; transition: all 0.2s; display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+    .inline-suggestion-item:hover { border-color:#4aa3ff; background:#1a2a3a; transform:translateX(4px); }
+    .inline-suggestion-item.learned { border-color:#15c27a; background:#0a2a1a; }
+    .inline-suggestion-item.learned::after { content:"🧠 学習済"; font-size:0.75rem; color:#15c27a; margin-left:8px; }
+    .learn-badge { background:rgba(21,194,122,0.2); color:#15c27a; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
+    
+    @media(max-width: 768px) {
+      .step-indicator { flex-wrap: wrap; }
+      .step { min-width: 100px; margin-bottom: 16px; }
+      .row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🏋️ HEVY 過去ワークアウト登録ツール <span style="font-size: 0.7em; color: var(--acc);">v6.0 🎉</span></h1>
+  <div class="subtitle">ステップガイド式で簡単にワークアウトを登録できます</div>
+  
+  <!-- ステップインジケーター -->
+  <div class="step-indicator">
+    <div class="step active" data-step="1">
+      <div class="step-circle">1</div>
+      <div class="step-label">APIキー入力</div>
+    </div>
+    <div class="step" data-step="2">
+      <div class="step-circle">2</div>
+      <div class="step-label">データ入力</div>
+    </div>
+    <div class="step" data-step="3">
+      <div class="step-circle">3</div>
+      <div class="step-label">内容確認</div>
+    </div>
+    <div class="step" data-step="4">
+      <div class="step-circle">4</div>
+      <div class="step-label">登録完了</div>
+    </div>
+  </div>
+  
+  <!-- ステップ1: APIキー入力 -->
+  <div class="card" id="step1Card">
+    <div class="card-header" onclick="toggleCard('step1Card')">
+      <h2>
+        <span>🔑 ステップ1: APIキー入力</span>
+        <span class="status-badge active">入力待ち</span>
+      </h2>
+      <span class="expand-icon">▼</span>
+    </div>
+    <div class="card-content">
+      <div class="info-box">
+        <p style="margin: 0 0 8px; font-weight: 600;">📝 APIキーの取得方法：</p>
+        <ol style="margin: 8px 0; padding-left: 20px;">
+          <li>HEVYアプリまたはWebサイトにログイン</li>
+          <li>設定 → Developer → API Key を確認</li>
+          <li>下記に貼り付けてください</li>
+        </ol>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+        <label style="margin-bottom: 0;">APIキー <span style="color: var(--danger);">*必須</span></label>
+        <span id="apiKeySavedIndicator" style="display: none; font-size: 0.75rem; color: var(--ok);">🔒 保存済み</span>
+      </div>
+      <input id="apiKey" type="text" placeholder="例: 03a6960b-1234-5678-90ab-cdef12345678" autocomplete="off" />
+      
+      <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap;">
+        <button class="btn ghost" onclick="clearApiKey()" style="background: var(--danger); border-color: var(--danger);">🗑 APIキーをクリア</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn ghost" onclick="refetchTemplates()" style="font-size: 0.75rem;">🔄 テンプレートを再取得</button>
+          <button class="btn ghost" onclick="testApiKey()">🔍 接続テスト</button>
+          <button class="btn primary" onclick="completeStep1()" id="step1NextBtn" disabled>次へ →</button>
+        </div>
+      </div>
+      
+      <div id="apiTestResult" style="margin-top: 12px; display: none;"></div>
+    </div>
+  </div>
+  
+  <!-- ステップ2: データ入力 -->
+  <div class="card collapsed" id="step2Card">
+    <div class="card-header" onclick="toggleCard('step2Card')">
+      <h2>
+        <span>📝 ステップ2: トレーニングデータ入力</span>
+        <span class="status-badge pending">未入力</span>
+      </h2>
+      <span class="expand-icon">▼</span>
+    </div>
+    <div class="card-content">
+      <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+        <button class="btn" onclick="showTemplatesModal()">📋 エクササイズ一覧</button>
+        <button class="btn" onclick="showFavoritesModal()">⭐ お気に入り</button>
+        <button class="btn" onclick="showLearningModal()">🧠 学習データ管理</button>
+      </div>
+      
+      <div class="info-box">
+        <p style="margin: 0 0 8px; font-weight: 600;">💡 2つの入力方法があります：</p>
+        <p style="margin: 0;"><strong>方法1（推奨）:</strong> トレーニングノートを貼り付けて自動解析</p>
+        <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--muted);">
+          必須：エクササイズ名と重量・回数・セット数<br>
+          例：「スミス・スクワット 97.5kg×6×3」
+        </p>
+        <p style="margin: 12px 0 0;"><strong>方法2:</strong> 手動でフォームに入力</p>
+        <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--muted);">
+          「➕ エクササイズを追加」ボタンで種目を追加
+        </p>
+      </div>
+      
+      <label>トレーニングデータを貼り付け（自動解析）</label>
+      <textarea id="rawData" placeholder="例：&#10;10/14&#10;時間/種目/合計：120分／11種目／9,801kg&#10;メイン：&#10;スミス・スクワット 97.5kg×6×3&#10;ヒップスラスト 130kg×10×3&#10;ノルディック・ハム 自重×15×2"></textarea>
+      
+      <div style="margin-top: 12px; display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn ghost" onclick="clearData()">🗑 クリア</button>
+        <button class="btn primary" onclick="parseAndFill()">📥 自動入力</button>
+      </div>
+      
+      <div id="parseInfo" style="margin-top: 12px; display: none;"></div>
+      
+      <hr style="border: none; border-top: 1px solid #1e2a36; margin: 24px 0;" />
+      
+      <h3 style="font-size: 1rem; margin-bottom: 16px;">または、手動で入力：</h3>
+      
+      <div id="manualForm">
+        <div class="row">
+          <div>
+            <label>タイトル <span style="color: var(--danger);">*</span></label>
+            <input id="title" type="text" placeholder="例: レッグデイ" />
+          </div>
+        </div>
+        
+        <div class="info-box" style="margin-bottom: 12px;">
+          <p style="margin: 0 0 8px; font-weight: 600;">⏰ クイック日時設定：</p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn ghost" style="font-size: 0.75rem; padding: 4px 10px;" onclick="setQuickDateTime('past-today')">📅 今日（過去）</button>
+            <button class="btn ghost" style="font-size: 0.75rem; padding: 4px 10px;" onclick="setQuickDateTime('tomorrow')">📅 明日</button>
+            <button class="btn ghost" style="font-size: 0.75rem; padding: 4px 10px;" onclick="setQuickDateTime('day-after')">📅 明後日</button>
+            <button class="btn ghost" style="font-size: 0.75rem; padding: 4px 10px;" onclick="setQuickDateTime('next-week')">📅 来週</button>
+            <button class="btn ghost" style="font-size: 0.75rem; padding: 4px 10px;" onclick="setQuickDateTime('custom-future')">🔧 カスタム（未来）</button>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div>
+            <label>開始日時（JST）<span style="color: var(--danger);">*</span></label>
+            <input id="startTime" type="datetime-local" />
+          </div>
+          <div>
+            <label>終了日時（JST）<span style="color: var(--danger);">*</span></label>
+            <input id="endTime" type="datetime-local" />
+          </div>
+        </div>
+        
+        <div class="row">
+          <div>
+            <label>説明（任意）</label>
+            <input id="description" type="text" placeholder="メモ等" />
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input id="isPrivate" type="checkbox" style="width: auto; margin-right: 8px;" />
+              <span>非公開にする</span>
+            </label>
+          </div>
+        </div>
+        
+        <div id="exList"></div>
+        
+        <button class="btn" onclick="addExercise()">➕ エクササイズを追加</button>
+      </div>
+      
+      <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn ghost" onclick="goToStep(1)">← 戻る</button>
+        <button class="btn primary" onclick="completeStep2()" id="step2NextBtn">次へ →</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ステップ3: 内容確認 -->
+  <div class="card collapsed" id="step3Card">
+    <div class="card-header" onclick="toggleCard('step3Card')">
+      <h2>
+        <span>✅ ステップ3: 内容確認</span>
+        <span class="status-badge pending">未確認</span>
+      </h2>
+      <span class="expand-icon">▼</span>
+    </div>
+    <div class="card-content">
+      <div class="tips">
+        <p style="margin: 0;"><strong>⚠️ 送信前に以下を確認してください：</strong></p>
+        <ul style="margin: 8px 0 0; padding-left: 20px;">
+          <li>エクササイズのテンプレートIDが正しく設定されているか</li>
+          <li>開始日時が終了日時より前になっているか</li>
+          <li>セットの内容（重量・回数）が正しいか</li>
+        </ul>
+      </div>
+      
+      <h3 style="font-size: 1rem; margin: 16px 0 8px;">送信するJSONデータ：</h3>
+      <pre id="preview">{ }</pre>
+      
+      <div id="validationResult" style="margin-top: 12px;"></div>
+      
+      <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn ghost" onclick="goToStep(2)">← 戻る</button>
+        <button class="btn ghost" onclick="refreshPreview()">🔄 更新</button>
+        <button class="btn success" onclick="submitWorkout()" id="submitBtn" disabled>📤 登録する</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ステップ4: 登録完了 -->
+  <div class="card collapsed" id="step4Card">
+    <div class="card-header" onclick="toggleCard('step4Card')">
+      <h2>
+        <span>🎉 ステップ4: 登録結果</span>
+        <span class="status-badge pending">未送信</span>
+      </h2>
+      <span class="expand-icon">▼</span>
+    </div>
+    <div class="card-content">
+      <div id="responseArea">
+        <p style="color: var(--muted); text-align: center; padding: 40px 0;">送信後にここに結果が表示されます</p>
+      </div>
+      
+      <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+        <button class="btn primary" onclick="resetAll()" style="display: none;" id="resetBtn">🔄 最初から登録する</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- テンプレート一覧モーダル -->
+  <div id="templatesModal" class="modal">
+    <div class="modal-content" style="width:1000px;">
+      <div class="modal-header">
+        <h2>📋 エクササイズテンプレート一覧</h2>
+        <button class="close-btn" onclick="closeModal('templatesModal')">×</button>
+      </div>
+      <input type="text" id="templateSearch" class="search-box" placeholder="🔍 エクササイズ名で検索..." oninput="filterTemplates()">
+      <div style="max-height:600px; overflow-y:auto;">
+        <table class="template-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">⭐</th>
+              <th>エクササイズ名</th>
+              <th style="width:120px;">ID</th>
+              <th style="width:100px;">アクション</th>
+            </tr>
+          </thead>
+          <tbody id="templateTableBody">
+            <tr><td colspan="4" style="text-align:center; padding:20px;">読み込み中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <!-- お気に入り管理モーダル -->
+  <div id="favoritesModal" class="modal">
+    <div class="modal-content" style="width:800px;">
+      <div class="modal-header">
+        <h2>⭐ お気に入りエクササイズ</h2>
+        <button class="close-btn" onclick="closeModal('favoritesModal')">×</button>
+      </div>
+      <div id="favoritesList"></div>
+    </div>
+  </div>
+  
+  <!-- 🧠 学習データ管理モーダル -->
+  <div id="learningModal" class="modal">
+    <div class="modal-content" style="width:900px;">
+      <div class="modal-header">
+        <h2>🧠 AI学習データ管理</h2>
+        <button class="close-btn" onclick="closeModal('learningModal')">×</button>
+      </div>
+      <div class="info-box" style="margin-bottom: 16px;">
+        <p style="margin: 0;"><strong>💡 学習機能について：</strong></p>
+        <p style="margin: 8px 0 0;">手動で選択したエクササイズのマッピングを記憶し、次回から自動的に適用します。不要なデータは削除できます。</p>
+      </div>
+      <div id="learningDataList"></div>
+      <div style="margin-top: 16px; text-align: center;">
+        <button class="btn" style="background: var(--danger); border-color: var(--danger);" onclick="clearAllLearningData()">🗑 すべての学習データをクリア</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- テンプレート -->
+  <template id="exerciseTpl">
+    <div class="exercise">
+      <div class="row" style="align-items:flex-end;">
+        <div style="flex: 2;">
+          <label>エクササイズテンプレートID <span style="color: var(--danger);">*</span></label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input class="tplId" type="text" placeholder="例: D0A4C939" style="flex:1;" />
+            <button type="button" class="btn ghost" onclick="searchInline(this)" style="padding:10px 14px; flex-shrink:0;">🔍</button>
+          </div>
+        </div>
+        <div style="flex: 1;">
+          <label>ノート</label>
+          <input class="exNote" type="text" placeholder="フォーム等" />
+        </div>
+        <div style="flex: 0 0 auto;">
+          <button type="button" class="btn" style="background: var(--danger); border-color: var(--danger);" onclick="this.closest('.exercise').remove()">🗑</button>
+        </div>
+      </div>
+      <div class="inline-suggestions-container"></div>
+      <div class="sets"></div>
+      <button type="button" class="btn ghost" onclick="addSetToExercise(this)">➕ セット追加</button>
+    </div>
+  </template>
+  
+  <template id="setTpl">
+    <div class="set row">
+      <div style="flex: 0 0 80px;">
+        <label>種類</label>
+        <input class="type" type="text" value="normal" />
+      </div>
+      <div>
+        <label>重量(kg)</label>
+        <input class="w" type="number" step="0.1" />
+      </div>
+      <div>
+        <label>反復数</label>
+        <input class="r" type="number" />
+      </div>
+      <div>
+        <label>時間(秒)</label>
+        <input class="dur" type="number" />
+      </div>
+      <div>
+        <label>距離(m)</label>
+        <input class="dist" type="number" />
+      </div>
+      <div>
+        <label>RPE</label>
+        <input class="rpe" type="number" step="0.5" />
+      </div>
+      <div style="flex: 0 0 auto; align-self: flex-end;">
+        <button type="button" class="btn" style="background: var(--danger); border-color: var(--danger); padding: 10px;" onclick="this.closest('.set').remove()">×</button>
+      </div>
+    </div>
+  </template>
+  
+  <script>
+    // グローバル変数
+    let currentStep = 1;
+    let allTemplates = [];
+    
+    // 🔒 APIキー永続保存
+    const API_KEY_STORAGE_KEY = 'hevy_api_key_v1';
+    
+    // 📦 テンプレートデータ永続保存
+    const TEMPLATES_STORAGE_KEY = 'hevy_templates_v1';
+    const TEMPLATES_TIMESTAMP_KEY = 'hevy_templates_timestamp_v1';
+    
+    // 🧠 機械学習：LocalStorageを使った学習データ
+    const LEARNING_STORAGE_KEY = 'hevy_exercise_learning_v1';
+    
+    function getLearnedMappings() {
+      try {
+        const data = localStorage.getItem(LEARNING_STORAGE_KEY);
+        return data ? JSON.parse(data) : {};
+      } catch (e) {
+        console.error('学習データの読み込みエラー:', e);
+        return {};
+      }
+    }
+    
+    function saveLearnedMapping(japaneseName, templateId, templateTitle) {
+      try {
+        const mappings = getLearnedMappings();
+        const normalized = japaneseName.toLowerCase().trim();
+        mappings[normalized] = { id: templateId, title: templateTitle, count: (mappings[normalized]?.count || 0) + 1, lastUsed: Date.now() };
+        localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(mappings));
+        console.log(`🧠 学習: "${japaneseName}" → "${templateTitle}" (ID: ${templateId})`);
+      } catch (e) {
+        console.error('学習データの保存エラー:', e);
+      }
+    }
+    
+    function getLearnedTemplate(japaneseName) {
+      const mappings = getLearnedMappings();
+      const normalized = japaneseName.toLowerCase().trim();
+      return mappings[normalized] || null;
+    }
+    
+    // 🔒 APIキー管理関数
+    function loadApiKey() {
+      try {
+        const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+        if (savedKey) {
+          document.getElementById('apiKey').value = savedKey;
+          document.getElementById('apiKey').classList.add('valid');
+          document.getElementById('apiKeySavedIndicator').style.display = 'inline';
+          document.getElementById('step1NextBtn').disabled = false;
+          console.log('🔒 保存済みAPIキーを復元しました');
+          return true;
+        }
+      } catch (e) {
+        console.error('APIキー読み込みエラー:', e);
+      }
+      return false;
+    }
+    
+    function saveApiKey(apiKey) {
+      try {
+        localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+        document.getElementById('apiKeySavedIndicator').style.display = 'inline';
+        console.log('🔒 APIキーを保存しました');
+      } catch (e) {
+        console.error('APIキー保存エラー:', e);
+      }
+    }
+    
+    function clearApiKey() {
+      if (confirm('保存されているAPIキーをクリアしますか？\n\n次回アクセス時に再入力が必要になります。')) {
+        try {
+          localStorage.removeItem(API_KEY_STORAGE_KEY);
+          document.getElementById('apiKey').value = '';
+          document.getElementById('apiKey').classList.remove('valid');
+          document.getElementById('apiKeySavedIndicator').style.display = 'none';
+          document.getElementById('step1NextBtn').disabled = true;
+          document.getElementById('apiTestResult').style.display = 'none';
+          allTemplates = [];
+          alert('✅ APIキーをクリアしました');
+          console.log('🗑 APIキーをクリアしました');
+        } catch (e) {
+          console.error('APIキークリアエラー:', e);
+        }
+      }
+    }
+    
+    // 📦 テンプレートデータ管理関数
+    function saveTemplates(templates) {
+      try {
+        localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+        localStorage.setItem(TEMPLATES_TIMESTAMP_KEY, Date.now().toString());
+        console.log(`📦 テンプレート ${templates.length}件を保存しました`);
+      } catch (e) {
+        console.error('テンプレート保存エラー:', e);
+        // LocalStorageの容量超過の可能性
+        if (e.name === 'QuotaExceededError') {
+          console.warn('⚠️ LocalStorage容量不足。古いデータを削除します。');
+          // 学習データ以外をクリア
+          localStorage.removeItem(TEMPLATES_STORAGE_KEY);
+          localStorage.removeItem(TEMPLATES_TIMESTAMP_KEY);
+          // 再試行
+          try {
+            localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+            localStorage.setItem(TEMPLATES_TIMESTAMP_KEY, Date.now().toString());
+            console.log('✅ 再保存成功');
+          } catch (e2) {
+            console.error('❌ 再保存も失敗:', e2);
+          }
+        }
+      }
+    }
+    
+    function loadTemplates() {
+      try {
+        const data = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+        const timestamp = localStorage.getItem(TEMPLATES_TIMESTAMP_KEY);
+        
+        if (data && timestamp) {
+          const templates = JSON.parse(data);
+          const savedDate = new Date(parseInt(timestamp));
+          console.log(`📦 保存済みテンプレート ${templates.length}件を復元しました`);
+          console.log(`   取得日時: ${savedDate.toLocaleString('ja-JP')}`);
+          
+          // 30日以上古い場合は警告
+          const daysPassed = (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60 * 24);
+          if (daysPassed > 30) {
+            console.warn(`⚠️ テンプレートデータが${Math.floor(daysPassed)}日前のものです。再取得を推奨します。`);
+          }
+          
+          return { templates, timestamp: parseInt(timestamp) };
+        }
+      } catch (e) {
+        console.error('テンプレート読み込みエラー:', e);
+      }
+      return null;
+    }
+    
+    function clearTemplates() {
+      try {
+        localStorage.removeItem(TEMPLATES_STORAGE_KEY);
+        localStorage.removeItem(TEMPLATES_TIMESTAMP_KEY);
+        console.log('📦 テンプレートデータをクリアしました');
+      } catch (e) {
+        console.error('テンプレートクリアエラー:', e);
+      }
+    }
+    
+    // ユーティリティ関数
+    function updateStepIndicator(step) {
+      document.querySelectorAll('.step').forEach(el => {
+        const stepNum = parseInt(el.dataset.step);
+        el.classList.remove('active', 'complete');
+        if (stepNum < step) el.classList.add('complete');
+        if (stepNum === step) el.classList.add('active');
+      });
+    }
+    
+    function updateStepStatus(cardId, status) {
+      const card = document.getElementById(cardId);
+      const badge = card.querySelector('.status-badge');
+      badge.className = 'status-badge ' + status;
+      badge.textContent = status === 'complete' ? '完了' : status === 'active' ? '入力中' : '未入力';
+    }
+    
+    function goToStep(step) {
+      currentStep = step;
+      updateStepIndicator(step);
+      
+      // すべてのカードを折りたたむ
+      document.querySelectorAll('.card').forEach(c => c.classList.add('collapsed'));
+      
+      // 対象のステップを開く
+      const targetCard = document.getElementById(`step${step}Card`);
+      if (targetCard) {
+        targetCard.classList.remove('collapsed');
+        targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      
+      // ステップ2を開いた時、エクササイズが0なら1つ追加
+      if (step === 2 && exList.querySelectorAll('.exercise').length === 0) {
+        addExercise();
+      }
+    }
+    
+    function toggleCard(cardId) {
+      document.getElementById(cardId).classList.toggle('collapsed');
+    }
+    
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('show');
+    }
+    
+    // ステップ1: APIキー
+    document.getElementById('apiKey').addEventListener('input', (e) => {
+      const btn = document.getElementById('step1NextBtn');
+      btn.disabled = !e.target.value.trim();
+      if (e.target.value.trim()) {
+        e.target.classList.add('valid');
+      } else {
+        e.target.classList.remove('valid');
+      }
+    });
+    
+    async function refetchTemplates() {
+      if (!confirm('テンプレートデータを再取得しますか？\n\n保存済みのテンプレートデータが最新のものに更新されます。')) {
+        return;
+      }
+      
+      // 既存のテンプレートをクリア
+      clearTemplates();
+      allTemplates = [];
+      
+      // 接続テストを実行（自動的にテンプレートを再取得・保存）
+      await testApiKey();
+    }
+    
+    async function testApiKey() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const resultDiv = document.getElementById('apiTestResult');
+      
+      if (!apiKey) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p class="err">⚠️ APIキーを入力してください</p>';
+        return;
+      }
+      
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<p style="color: var(--muted);">🔄 全テンプレートを取得中...</p>';
+      
+      try {
+        // 🚀 ページネーション対応：全テンプレートを取得
+        allTemplates = [];
+        let page = 0;
+        let hasMore = true;
+        
+        while (hasMore) {
+          const response = await fetch(`https://api.hevyapp.com/v1/exercise_templates?page=${page}&pageSize=100`, {
+            headers: { 'api-key': apiKey }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          const templates = data.exercise_templates || data.data || data;
+          
+          if (Array.isArray(templates) && templates.length > 0) {
+            allTemplates = allTemplates.concat(templates);
+            console.log(`ページ ${page}: ${templates.length}件取得 (累計: ${allTemplates.length}件)`);
+            page++;
+            
+            // 100件未満なら最終ページ
+            if (templates.length < 100) {
+              hasMore = false;
+            }
+          } else {
+            hasMore = false;
+          }
+          
+          // 安全装置：10ページ以上は取得しない
+          if (page >= 10) {
+            console.warn('⚠️ 10ページに達したため、取得を中断しました');
+            hasMore = false;
+          }
+        }
+        
+        if (allTemplates.length > 0) {
+          // 🔒 APIキーを保存
+          saveApiKey(apiKey);
+          
+          // 📦 テンプレートを保存
+          saveTemplates(allTemplates);
+          
+          // 🔍 デバッグ情報を追加
+          console.log('=== API レスポンス デバッグ ===');
+          console.log('allTemplates.length:', allTemplates.length);
+          console.log('テンプレートの構造（1件目）:', allTemplates[0]);
+          
+          // Hip, Nordic, Plank, Calf を含むテンプレートを検索
+          const hipTemplates = allTemplates.filter(t => t.title.toLowerCase().includes('hip'));
+          const nordicTemplates = allTemplates.filter(t => t.title.toLowerCase().includes('nordic'));
+          const plankTemplates = allTemplates.filter(t => t.title.toLowerCase().includes('plank'));
+          const calfTemplates = allTemplates.filter(t => t.title.toLowerCase().includes('calf'));
+          
+          console.log('"Hip" を含むテンプレート:', hipTemplates.map(t => t.title));
+          console.log('"Nordic" を含むテンプレート:', nordicTemplates.map(t => t.title));
+          console.log('"Plank" を含むテンプレート:', plankTemplates.map(t => t.title));
+          console.log('"Calf" を含むテンプレート:', calfTemplates.map(t => t.title));
+          console.log('================================');
+          
+          resultDiv.innerHTML = `<div class="success-box">
+            <p class="ok" style="margin: 0 0 8px;">✅ 接続成功！ ${allTemplates.length}件のエクササイズテンプレートを取得しました</p>
+            <p style="font-size: 0.85rem; color: var(--muted); margin: 4px 0 0;">🚀 ページネーション対応済み - 全テンプレートを取得済み</p>
+            <details style="font-size: 0.85rem; color: var(--muted); margin-top: 8px;">
+              <summary style="cursor: pointer; user-select: none;">🔍 デバッグ情報を表示</summary>
+              <pre style="margin-top: 8px; max-height: 300px; overflow: auto;">${JSON.stringify(allTemplates.slice(0, 5), null, 2)}</pre>
+            </details>
+          </div>`;
+          document.getElementById('step1NextBtn').disabled = false;
+        } else {
+          resultDiv.innerHTML = `<p class="err">❌ テンプレートが取得できませんでした</p>`;
+        }
+      } catch (e) {
+        resultDiv.innerHTML = `<p class="err">❌ エラー: ${e.message}</p>`;
+      }
+    }
+    
+    function completeStep1() {
+      if (allTemplates.length === 0) {
+        alert('先に「接続テスト」を実行してください');
+        return;
+      }
+      updateStepStatus('step1Card', 'complete');
+      updateStepStatus('step2Card', 'active');
+      goToStep(2);
+    }
+    
+    // ステップ2: データ入力
+    const exList = document.getElementById('exList');
+    const exTpl = document.getElementById('exerciseTpl');
+    const setTpl = document.getElementById('setTpl');
+    
+    function toISO(dtLocal) {
+      if (!dtLocal) return null;
+      const d = new Date(dtLocal);
+      if (isNaN(d.getTime())) return null;
+      const iso = d.toISOString();
+      console.log(`🕐 時刻変換: ${dtLocal} → ${iso}`);
+      return iso;
+    }
+    
+    // ⏰ クイック日時設定機能
+    function setQuickDateTime(type) {
+      const now = new Date();
+      let startDate, endDate;
+      
+      switch(type) {
+        case 'past-today':
+          // 今日の9:00-10:30（過去のトレーニング）
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 30);
+          break;
+          
+        case 'tomorrow':
+          // 明日の9:00-10:30
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 30);
+          break;
+          
+        case 'day-after':
+          // 明後日の9:00-10:30
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 9, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 10, 30);
+          break;
+          
+        case 'next-week':
+          // 来週の今日の9:00-10:30
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 9, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 10, 30);
+          break;
+          
+        case 'custom-future':
+          // カスタム（3日後の9:00-10:30）
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 9, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 10, 30);
+          break;
+          
+        default:
+          return;
+      }
+      
+      // フォーマット: YYYY-MM-DDTHH:MM
+      const formatDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        const minute = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+      };
+      
+      document.getElementById('startTime').value = formatDateTime(startDate);
+      document.getElementById('endTime').value = formatDateTime(endDate);
+      
+      console.log(`⏰ クイック日時設定: ${type}`);
+      console.log(`   開始: ${formatDateTime(startDate)}`);
+      console.log(`   終了: ${formatDateTime(endDate)}`);
+    }
+    
+    function addExercise() {
+      const node = exTpl.content.firstElementChild.cloneNode(true);
+      const setsWrap = node.querySelector('.sets');
+      
+      // 既定で1セット追加
+      const s = setTpl.content.firstElementChild.cloneNode(true);
+      setsWrap.appendChild(s);
+      
+      exList.appendChild(node);
+    }
+    
+    function addSetToExercise(button) {
+      const exercise = button.closest('.exercise');
+      const setsWrap = exercise.querySelector('.sets');
+      const s = setTpl.content.firstElementChild.cloneNode(true);
+      setsWrap.appendChild(s);
+    }
+    
+    function clearData() {
+      document.getElementById('rawData').value = '';
+      document.getElementById('parseInfo').style.display = 'none';
+      exList.innerHTML = '';
+      document.getElementById('title').value = '';
+      document.getElementById('description').value = '';
+      document.getElementById('startTime').value = '';
+      document.getElementById('endTime').value = '';
+    }
+    
+    // トレーニングデータ解析機能
+    function parseWorkoutData(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      const exercises = [];
+      let currentDate = '';
+      let totalTime = 0;
+      let currentExercise = null;
+      let inSetDetails = false;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // 📅 日付を検出 (例: 10/14 または 8月29日)
+        if (/^\d{1,2}\/\d{1,2}/.test(line)) {
+          currentDate = line;
+          continue;
+        }
+        
+        // 📅 日本語形式の日付 (例: 8月29日)
+        const jpDateMatch = line.match(/(\d{1,2})月(\d{1,2})日/);
+        if (jpDateMatch) {
+          currentDate = `${jpDateMatch[1]}/${jpDateMatch[2]}`;
+          continue;
+        }
+        
+        // 🚫 スキップすべき行（先に判定）
+        if (/^(メイン|補助|サブ)[：:]?\s*$/.test(line)) {
+          continue;
+        }
+        if (/^(レベル|合計重量|消費カロリ|消費カロリー|記録)[：:]/.test(line)) {
+          continue;
+        }
+        // 記録の詳細行（王冠マークなど）をスキップ
+        if (line.startsWith('•') && /^•\s*👑/.test(line)) {
+          continue;
+        }
+        if (line === 'セット詳細:' || line === 'セット詳細：') {
+          inSetDetails = true;
+          continue;
+        }
+        if (line === 'サマリー' || line === 'Exercise Details' || line.startsWith('トレーニング記録')) {
+          continue;
+        }
+        // 単独の bullet point のみの行をスキップ
+        if (line === '•' || line === '・') {
+          continue;
+        }
+        
+        // 🕐 時間情報を検出（bullet point付きも対応）
+        const timeMatch = line.match(/(\d+)分/);
+        if (timeMatch && /トレーニング時間|所要時間/.test(line)) {
+          totalTime = parseInt(timeMatch[1]);
+          console.log(`⏱️ トレーニング時間を検出: ${totalTime}分`);
+          continue;
+        }
+        
+        // サマリー行のスキップ（トレーニング数、消費カロリーなど）
+        if (line.startsWith('•') && /^•\s*(トレーニング数|消費カロリ|消費カロリー|合計重量)/.test(line)) {
+          continue;
+        }
+        
+        // 🏋️ エクササイズ名を検出（番号付き形式: "1. バーベル・スクワット"）
+        const numberedExMatch = line.match(/^\d+\.\s*(.+)$/);
+        if (numberedExMatch) {
+          if (currentExercise && currentExercise.sets.length > 0) {
+            exercises.push(currentExercise);
+          }
+          currentExercise = {
+            name: numberedExMatch[1].trim(),
+            sets: []
+          };
+          inSetDetails = false;
+          continue;
+        }
+        
+        // 📝 エクササイズ名を抽出（従来形式：コロン区切りなど）
+        let exerciseName = '';
+        let dataStr = line;
+        
+        // 🎯 セット詳細モード中のデータ行（bullet point付き）
+        if (currentExercise && (inSetDetails || line.startsWith('•') || line.startsWith('・'))) {
+          // Bullet pointを削除
+          let cleanLine = line.replace(/^[•・]\s*/, '');
+          
+          // メタデータ行はスキップ
+          if (/^(レベル|合計重量|消費カロリ|消費カロリー|トレーニング|所要時間|👑)[：:]/.test(cleanLine)) {
+            continue;
+          }
+          // 王冠マーク付き記録行をスキップ
+          if (cleanLine.startsWith('👑')) {
+            continue;
+          }
+          
+          // 自重形式: "10回" だけ（kgなし）
+          const bwOnlyMatch = cleanLine.match(/^(\d+)\s*(?:回|rep)$/i);
+          if (bwOnlyMatch) {
+            currentExercise.sets.push({ reps: parseInt(bwOnlyMatch[1]) });
+            continue;
+          }
+          
+          // kg付き形式: "80kg × 5回"
+          const kgMatch = cleanLine.match(/([0-9.]+)\s*kg\s*[×xX]\s*(\d+)\s*(?:回|rep)?/i);
+          if (kgMatch) {
+            currentExercise.sets.push({
+              weight: parseFloat(kgMatch[1]),
+              reps: parseInt(kgMatch[2])
+            });
+            continue;
+          }
+          
+          // 自重 × 回数 形式
+          const bwMatch = cleanLine.match(/自重\s*[×xX]\s*(\d+)\s*(?:回|rep)?/i);
+          if (bwMatch) {
+            currentExercise.sets.push({ reps: parseInt(bwMatch[1]) });
+            continue;
+          }
+          
+          // 時間形式: "30秒"
+          const durMatch = cleanLine.match(/(\d+)\s*秒/i);
+          if (durMatch) {
+            currentExercise.sets.push({ duration: parseInt(durMatch[1]) });
+            continue;
+          }
+          
+          // 空行やその他はスキップ
+          continue;
+        }
+        
+        // 🔄 従来形式のパーサー（コロン区切り形式）
+        // パターン1: 全角コロン（：）で分割
+        if (line.includes('：')) {
+          const parts = line.split('：');
+          exerciseName = parts[0].trim();
+          dataStr = parts[1].trim();
+        }
+        // パターン2: 半角コロン（:）で分割
+        else if (line.includes(':')) {
+          const parts = line.split(':');
+          exerciseName = parts[0].trim();
+          dataStr = parts[1].trim();
+        }
+        // パターン3: 数字やkgが出現する前までを種目名とする
+        else {
+          const match = line.match(/^([^0-9（(]+)/);
+          if (match) {
+            exerciseName = match[1].trim();
+            dataStr = line.substring(match[0].length).trim();
+          }
+        }
+        
+        if (!exerciseName) continue;
+        
+        // 番号を削除: "1. バーベル・スクワット" → "バーベル・スクワット"
+        exerciseName = exerciseName.replace(/^\d+\.\s*/, '');
+        
+        // データ部分を分割（「、」と「,」と「／」で分割）
+        const setGroups = dataStr.split(/[,、／/]/).map(s => s.trim()).filter(s => s);
+        const allSets = [];
+        
+        for (const setGroup of setGroups) {
+          // 自重パターン（スペース対応）
+          if (/自重/.test(setGroup)) {
+            // パターン1: 自重 × 10回 × 3セット
+            const match1 = setGroup.match(/自重\s*[×xX]\s*(\d+)\s*(?:回|rep)?\s*[×xX]\s*(\d+)\s*(?:セット|set)?/i);
+            if (match1) {
+              const [, reps, sets] = match1;
+              for (let i = 0; i < parseInt(sets); i++) {
+                allSets.push({ reps: parseInt(reps) });
+              }
+              continue;
+            }
+            
+            // パターン2: 自重 × 10回（セット数なし）
+            const match2 = setGroup.match(/自重\s*[×xX]\s*(\d+)\s*(?:回|rep)?/i);
+            if (match2) {
+              const [, reps] = match2;
+              allSets.push({ reps: parseInt(reps) });
+              continue;
+            }
+            
+            // パターン3: 自重（回数もなし）
+            allSets.push({ reps: 0 });
+            continue;
+          }
+          
+          // 時間パターン（スペース対応）
+          const timeMatch = setGroup.match(/(\d+)\s*秒\s*[×xX]\s*(\d+)\s*(?:セット|set)?/i);
+          if (timeMatch) {
+            const [, duration, sets] = timeMatch;
+            for (let i = 0; i < parseInt(sets); i++) {
+              allSets.push({ duration: parseInt(duration) });
+            }
+            continue;
+          }
+          
+          // ウォームアップパターン（スペース対応）
+          const warmupMatch = setGroup.match(/[（(]\s*(?:WU|ウォーム)\s*[）)]\s*([0-9.]+)\s*kg\s*[×xX]\s*(\d+)\s*(?:回|rep)?\s*[×xX]\s*(\d+)\s*(?:セット|set)?/i);
+          if (warmupMatch) {
+            const [, weight, reps, sets] = warmupMatch;
+            for (let i = 0; i < parseInt(sets); i++) {
+              allSets.push({ 
+                weight: parseFloat(weight), 
+                reps: parseInt(reps),
+                type: 'warmup'
+              });
+            }
+            continue;
+          }
+          
+          // 通常パターン（スペース対応 + より柔軟に）
+          // パターン1: 80kg × 8回 × 3セット
+          const normalMatch1 = setGroup.match(/([0-9.]+)\s*kg\s*[×xX]\s*(\d+)\s*(?:回|rep)?\s*[×xX]\s*(\d+)\s*(?:セット|set)?/i);
+          if (normalMatch1) {
+            const [, weight, reps, sets] = normalMatch1;
+            for (let i = 0; i < parseInt(sets); i++) {
+              allSets.push({ 
+                weight: parseFloat(weight), 
+                reps: parseInt(reps)
+              });
+            }
+            continue;
+          }
+          
+          // パターン2: 80kg × 8回（セット数なし）
+          const normalMatch2 = setGroup.match(/([0-9.]+)\s*kg\s*[×xX]\s*(\d+)\s*(?:回|rep)?/i);
+          if (normalMatch2) {
+            const [, weight, reps] = normalMatch2;
+            allSets.push({ 
+              weight: parseFloat(weight), 
+              reps: parseInt(reps)
+            });
+            continue;
+          }
+          
+          // 括弧のみの行はスキップ
+          if (/^[（(].*[）)]$/.test(setGroup)) {
+            continue;
+          }
+        }
+        
+        if (allSets.length > 0) {
+          // 種目名のクリーンアップ（「／脚」などの不要部分を削除）
+          let cleanName = exerciseName.replace(/[／/]脚.*$/, '').trim();
+          
+          // 「エクササイズバンド・」などの接頭辞を削除
+          cleanName = cleanName.replace(/^エクササイズバンド[・･]?/i, '');
+          
+          exercises.push({
+            name: cleanName,
+            sets: allSets
+          });
+        }
+      }
+      
+      // 🔚 最後のエクササイズを追加（HEVYエクスポート形式用）
+      if (currentExercise && currentExercise.sets.length > 0) {
+        // 種目名のクリーンアップ
+        let cleanName = currentExercise.name.replace(/[／/]脚.*$/, '').trim();
+        cleanName = cleanName.replace(/^エクササイズバンド[・･]?/i, '');
+        
+        exercises.push({
+          name: cleanName,
+          sets: currentExercise.sets
+        });
+      }
+      
+      return { date: currentDate, totalTime, exercises };
+    }
+    
+    function fillFormWithData(data) {
+      exList.innerHTML = '';
+      
+      const mainExercise = data.exercises[0]?.name || 'ワークアウト';
+      document.getElementById('title').value = mainExercise + ' - ' + data.date;
+      
+      if (data.date) {
+        const dateMatch = data.date.match(/(\d{1,2})\/(\d{1,2})/);
+        if (dateMatch) {
+          const year = new Date().getFullYear();
+          const month = String(dateMatch[1]).padStart(2, '0');
+          const day = String(dateMatch[2]).padStart(2, '0');
+          
+          document.getElementById('startTime').value = `${year}-${month}-${day}T09:00`;
+          
+          if (data.totalTime > 0) {
+            const endDate = new Date(`${year}-${month}-${day}T09:00`);
+            endDate.setMinutes(endDate.getMinutes() + data.totalTime);
+            // JST時刻をローカル形式で取得（UTC変換しない）
+            const endYear = endDate.getFullYear();
+            const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+            const endDay = String(endDate.getDate()).padStart(2, '0');
+            const endHour = String(endDate.getHours()).padStart(2, '0');
+            const endMinute = String(endDate.getMinutes()).padStart(2, '0');
+            const endStr = `${endYear}-${endMonth}-${endDay}T${endHour}:${endMinute}`;
+            document.getElementById('endTime').value = endStr;
+            console.log(`⏱️ 終了時刻を設定: ${endStr} (開始 + ${data.totalTime}分)`);
+          } else {
+            document.getElementById('endTime').value = `${year}-${month}-${day}T10:30`;
+          }
+        }
+      } else {
+        // 📅 日付が無い場合はデフォルト時刻を設定（今日の日付で9:00開始）
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        document.getElementById('startTime').value = `${year}-${month}-${day}T09:00`;
+        
+        // トレーニング時間がある場合は加算、なければ10:30
+        if (data.totalTime > 0) {
+          const endDate = new Date(`${year}-${month}-${day}T09:00`);
+          endDate.setMinutes(endDate.getMinutes() + data.totalTime);
+          const endYear = endDate.getFullYear();
+          const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+          const endDay = String(endDate.getDate()).padStart(2, '0');
+          const endHour = String(endDate.getHours()).padStart(2, '0');
+          const endMinute = String(endDate.getMinutes()).padStart(2, '0');
+          const endStr = `${endYear}-${endMonth}-${endDay}T${endHour}:${endMinute}`;
+          document.getElementById('endTime').value = endStr;
+          console.log(`⏱️ 終了時刻を設定: ${endStr} (開始 + ${data.totalTime}分)`);
+        } else {
+          document.getElementById('endTime').value = `${year}-${month}-${day}T10:30`;
+        }
+      }
+      
+      data.exercises.forEach(ex => {
+        const node = exTpl.content.firstElementChild.cloneNode(true);
+        const setsWrap = node.querySelector('.sets');
+        
+        node.querySelector('.exNote').value = ex.name;
+        node.dataset.exerciseName = ex.name;
+        
+        ex.sets.forEach(set => {
+          const s = setTpl.content.firstElementChild.cloneNode(true);
+          if (set.weight) s.querySelector('.w').value = set.weight;
+          if (set.reps) s.querySelector('.r').value = set.reps;
+          if (set.duration) s.querySelector('.dur').value = set.duration;
+          if (set.type) s.querySelector('.type').value = set.type;
+          setsWrap.appendChild(s);
+        });
+        
+        exList.appendChild(node);
+      });
+      
+      return data.exercises.length;
+    }
+    
+    async function parseAndFill() {
+      const rawText = document.getElementById('rawData').value;
+      if (!rawText.trim()) {
+        alert('データを入力してください');
+        return;
+      }
+      
+      try {
+        const data = parseWorkoutData(rawText);
+        
+        console.log('解析結果:', data);
+        console.log('エクササイズ数:', data.exercises.length);
+        data.exercises.forEach((ex, i) => {
+          console.log(`${i+1}. ${ex.name} - セット数: ${ex.sets.length}`);
+        });
+        
+        // エクササイズが0件の場合はエラー
+        if (data.exercises.length === 0) {
+          const info = document.getElementById('parseInfo');
+          info.style.display = 'block';
+          info.innerHTML = `<div class="err">
+            <p style="margin: 0 0 8px;"><strong>❌ エクササイズデータが見つかりませんでした</strong></p>
+            <p style="margin: 4px 0; font-size: 0.85rem;">入力データに以下の情報が含まれているか確認してください：</p>
+            <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.85rem;">
+              <li>エクササイズ名（例：スミス・スクワット）</li>
+              <li>重量・回数・セット数（例：97.5kg×6×3）</li>
+            </ul>
+            <p style="margin: 8px 0 0; font-size: 0.85rem; color: var(--muted);">💡 正しい形式の例：</p>
+            <pre style="margin: 8px 0; padding: 8px; background: #0e141b; border-radius: 6px; font-size: 0.75rem;">10/14
+時間/種目/合計：120分／11種目／9,801kg
+メイン：
+スミス・スクワット 97.5kg×6×3
+ヒップスラスト 130kg×10×3
+ノルディック・ハム 自重×15×2</pre>
+            <p style="margin: 8px 0 0; font-size: 0.85rem; color: var(--acc);">👉 または、下の「手動でフォームに入力」をご利用ください</p>
+          </div>`;
+          return;
+        }
+        
+        const count = fillFormWithData(data);
+        
+        const info = document.getElementById('parseInfo');
+        info.style.display = 'block';
+        info.innerHTML = `<p class="ok">✓ ${count}種目を読み込みました。<br>🔍 <strong>テンプレートIDを自動検索中...</strong></p>`;
+        
+        await searchAndFillTemplateIds();
+        
+        document.getElementById('manualForm').scrollIntoView({ behavior: 'smooth' });
+      } catch (e) {
+        const info = document.getElementById('parseInfo');
+        info.style.display = 'block';
+        info.innerHTML = `<p class="err">✗ データの解析に失敗しました: ${e.message}</p>`;
+        console.error(e);
+      }
+    }
+    
+    // テンプレートID自動検索
+    async function searchAndFillTemplateIds() {
+      const info = document.getElementById('parseInfo');
+      
+      // 🔍 デバッグ情報を追加
+      console.log('\n=== searchAndFillTemplateIds 実行 ===');
+      console.log('allTemplates.length:', allTemplates.length);
+      console.log('allTemplates[0]:', allTemplates[0]);
+      console.log('allTemplates配列の型:', Array.isArray(allTemplates));
+      
+      if (allTemplates.length === 0) {
+        info.innerHTML += `<p class="err"><br>⚠️ APIキーの接続テストを先に実行してください。</p>`;
+        return;
+      }
+      
+      const translateToEnglish = (japaneseText) => {
+        const dictionary = {
+          'スミス・スクワット': 'Smith Machine Squat',
+          'スミススクワット': 'Smith Machine Squat',
+          'ルーマニアン・デッドリフト': 'Romanian Deadlift',
+          'ルーマニアンデッドリフト': 'Romanian Deadlift',
+          'RDL': 'Romanian Deadlift',
+          'ベンチプレス': 'Bench Press',
+          'ヒップスラスト': 'Hip Thrust',
+          'ヒップ・スラスト': 'Hip Thrust',
+          'バーベル・ヒップスラスト': 'Barbell Hip Thrust',
+          'ノルディック・ハム': 'Nordic Hamstring Curl',
+          'ノルディックハム': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディックハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリング': 'Nordic Hamstring Curl',
+          'ノルディックハムストリング': 'Nordic Hamstring Curl',
+          'ノルディックカール': 'Nordic Hamstring Curl',
+          'サイド・ヒップリフト': 'Side Hip Raise',
+          'サイドヒップリフト': 'Side Hip Raise',
+          'サイドレッグレイズ': 'Side Leg Raise',
+          '片脚・カーフレイズ': 'Single Leg Calf Raise',
+          '片脚カーフレイズ': 'Single Leg Calf Raise',
+          '片脚カーフ': 'Single Leg Calf Raise',
+          'カーフレイズ': 'Calf Raise',
+          'フロント・プランク': 'Front Plank',
+          'フロントプランク': 'Front Plank',
+          'プランク': 'Plank',
+          'ブルガリアン・スクワット': 'Bulgarian Split Squat',
+          'ブルガリアンスクワット': 'Bulgarian Split Squat',
+          'バーベル・フロント・スクワット': 'Barbell Front Squat',
+          'バーベルフロントスクワット': 'Barbell Front Squat',
+          'フロントスクワット': 'Front Squat',
+          'バーベル・スクワット': 'Barbell Squat',
+          'バーベルスクワット': 'Barbell Squat',
+          'スクワット': 'Squat',
+          'ゴブレットスクワット': 'Goblet Squat',
+          'ハンギング・ニーレイズ': 'Hanging Knee Raise',
+          'ハンギングニーレイズ': 'Hanging Knee Raise',
+          'ニーレイズ': 'Knee Raise',
+          'ケーブル・ウッドチョップ': 'Cable Wood Chop',
+          'ケーブルウッドチョップ': 'Cable Wood Chop',
+          'ウッドチョップ': 'Wood Chop',
+          'バンド・ヒップアダクション': 'Hip Adduction Band',
+          'ヒップアダクション': 'Hip Adduction',
+          'ヒップ・アダクション': 'Hip Adduction',
+          'バンド・ヒップアブダクション': 'Hip Abduction Band',
+          'ヒップアブダクション': 'Hip Abduction',
+          'ヒップ・アブダクション': 'Hip Abduction',
+          '股関節バック・エクステンション': 'Hip Extension',
+          '片脚股関節バック・エクステンション': 'Single Leg Hip Extension',
+          'カーフレイズ（レッグプレス）': 'Leg Press Calf Raise',
+          'レッグプレス': 'Leg Press',
+          'レッグ・プレス': 'Leg Press',
+          'レッグエクステンション': 'Leg Extension',
+          'レッグ・エクステンション': 'Leg Extension',
+          'レッグカール': 'Leg Curl',
+          'レッグ・カール': 'Leg Curl',
+          'ライイング・レッグカール': 'Lying Leg Curl',
+          'ライイングレッグカール': 'Lying Leg Curl',
+          'シーテッド・レッグカール': 'Seated Leg Curl',
+          'シーテッドレッグカール': 'Seated Leg Curl',
+          'スタンディング・レッグカール': 'Standing Leg Curl',
+          'スタンディングレッグカール': 'Standing Leg Curl'
+        };
+        
+        const cleaned = japaneseText.replace(/[（(].*?[)）]/g, '').trim();
+        if (dictionary[cleaned]) {
+          console.log(`    📖 辞書マッチ: "${cleaned}" → "${dictionary[cleaned]}"`);
+          return dictionary[cleaned];
+        }
+        
+        let translated = japaneseText;
+        const partialDict = {
+          'スミス': 'Smith Machine', 'バーベル': 'Barbell', 'ダンベル': 'Dumbbell',
+          'マシン': 'Machine', 'ケーブル': 'Cable', 'スクワット': 'Squat',
+          'デッドリフト': 'Deadlift', 'ベンチ': 'Bench', 'プレス': 'Press',
+          'プランク': 'Plank', 'カール': 'Curl', 'レイズ': 'Raise',
+          'ロウ': 'Row', 'プル': 'Pull', 'プッシュ': 'Push',
+          'リフト': 'Lift', 'スラスト': 'Thrust', 'ヒップ': 'Hip',
+          'レッグ': 'Leg', 'カーフ': 'Calf', 'フロント': 'Front',
+          'サイド': 'Side', 'バック': 'Back', 'ルーマニアン': 'Romanian',
+          'ブルガリアン': 'Bulgarian', 'ノルディック': 'Nordic',
+          '片脚': 'Single Leg', '両脚': 'Double Leg', '自重': 'Bodyweight',
+          'ハンギング': 'Hanging', 'ニー': 'Knee', 'ウッド': 'Wood',
+          'チョップ': 'Chop', 'バンド': 'Band', 'アダクション': 'Adduction',
+          'アブダクション': 'Abduction', 'ツイスト': 'Twist',
+          'ハムストリングス': 'Hamstring', 'ハムストリング': 'Hamstring'
+        };
+        
+        for (const [jp, en] of Object.entries(partialDict)) {
+          translated = translated.replace(new RegExp(jp, 'g'), en);
+        }
+        
+        return translated.replace(/[・、。]/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+      
+      let matchCount = 0;
+      const exercises = exList.querySelectorAll('.exercise');
+      
+      exercises.forEach((exNode, index) => {
+        const exerciseName = exNode.dataset.exerciseName;
+        if (!exerciseName) return;
+        
+        console.log(`\n[${index + 1}] "${exerciseName}"`);
+        
+        // 🧠 学習データから優先的に検索
+        const learned = getLearnedTemplate(exerciseName);
+        if (learned) {
+          console.log(`  🧠 学習データから自動入力: "${learned.title}" (ID: ${learned.id})`);
+          const tplIdInput = exNode.querySelector('.tplId');
+          tplIdInput.value = learned.id;
+          tplIdInput.style.borderColor = '#15c27a';
+          tplIdInput.style.background = '#0a2a1a';
+          matchCount++;
+          return; // 学習データがあれば翻訳・検索をスキップ
+        }
+        
+        const translatedName = translateToEnglish(exerciseName);
+        console.log(`  → 翻訳: "${translatedName}"`);
+        
+        const calculateMatchScore = (translatedName, templateTitle) => {
+          const normalizedTitle = templateTitle.replace(/[（(].*?[)）]/g, '').toLowerCase().replace(/[\s\-・()（）]/g, '');
+          const normalizedSearch = translatedName.replace(/[（(].*?[)）]/g, '').toLowerCase().replace(/[\s\-・()（）]/g, '');
+          const translatedLower = translatedName.toLowerCase();
+          const titleLower = templateTitle.toLowerCase();
+          const titleWithoutParens = templateTitle.replace(/[（(].*?[)）]/g, '').toLowerCase().trim();
+          
+          // 🎯 完全一致（括弧内を含む）= 1100点
+          if (titleLower === translatedLower) {
+            return { score: 1100, reason: '完全一致（括弧含む）', title: templateTitle };
+          }
+          
+          // 完全一致 = 1000点
+          if (normalizedTitle === normalizedSearch) {
+            return { score: 1000, reason: '完全一致', title: templateTitle };
+          }
+          
+          // 正規化後の完全一致（括弧除外）
+          if (titleWithoutParens.replace(/[\s\-]/g, '') === translatedLower.replace(/[\s\-]/g, '')) {
+            return { score: 950, reason: '完全一致（括弧除外）', title: templateTitle };
+          }
+          
+          // 部分一致（正規化後に片方が完全に含まれる）
+          if (normalizedTitle.includes(normalizedSearch) || normalizedSearch.includes(normalizedTitle)) {
+            return { score: 900, reason: '部分一致（正規化）', title: templateTitle };
+          }
+          
+          // 翻訳名での部分一致（括弧除外）
+          if (titleWithoutParens.includes(translatedLower) || translatedLower.includes(titleWithoutParens)) {
+            return { score: 850, reason: '翻訳名一致（括弧除外）', title: templateTitle };
+          }
+          
+          // 🔍 単語単位でのマッチング（最小長を2文字に緩和）
+          const translatedWords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 2);
+          const titleWords = templateTitle.replace(/[（(].*?[)）]/g, '').toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 2);
+          
+          if (translatedWords.length === 0 || titleWords.length === 0) {
+            return { score: 0, reason: 'なし', title: templateTitle };
+          }
+          
+          // 完全一致する単語をカウント
+          const exactMatches = translatedWords.filter(w => titleWords.includes(w));
+          const matchRatio = exactMatches.length / translatedWords.length;
+          
+          // 🎯 全単語が一致 & 単語数も一致（順序は問わない）= 975点
+          if (matchRatio === 1.0 && exactMatches.length === titleWords.length && exactMatches.length >= 2) {
+            return { score: 975, reason: `完全単語一致(${exactMatches.length}単語)`, title: templateTitle };
+          }
+          
+          // 全単語が一致する場合のみ高スコア
+          if (matchRatio === 1.0 && exactMatches.length >= 2) {
+            return { score: 800, reason: `全単語一致(${exactMatches.length}/${translatedWords.length})`, title: templateTitle };
+          }
+          
+          // 75%以上の単語が一致
+          if (matchRatio >= 0.75 && exactMatches.length >= 2) {
+            return { score: 700, reason: `高単語一致率(${exactMatches.length}/${translatedWords.length})`, title: templateTitle };
+          }
+          
+          // 50%以上の単語が一致
+          if (matchRatio >= 0.5 && exactMatches.length >= 2) {
+            return { score: 500, reason: `中単語一致率(${exactMatches.length}/${translatedWords.length})`, title: templateTitle };
+          }
+          
+          // 🎯 部分一致（単語の一部が含まれる）
+          const partialMatches = translatedWords.filter(w => 
+            titleWords.some(tw => tw.includes(w) || w.includes(tw))
+          );
+          if (partialMatches.length >= 2) {
+            return { score: 400, reason: `部分単語一致(${partialMatches.length}単語)`, title: templateTitle };
+          }
+          if (partialMatches.length === 1) {
+            return { score: 300, reason: `部分単語一致(1単語)`, title: templateTitle };
+          }
+          
+          // 🎯 単一単語のみの一致（1単語でも候補として表示）
+          if (exactMatches.length === 1) {
+            return { score: 250, reason: `単語一致(1単語)`, title: templateTitle };
+          }
+          
+          return { score: 0, reason: 'なし', title: templateTitle };
+        };
+        
+        // 🔍 検索対象のキーワードでフィルタリングしてからスコアリング（最小長1文字）
+        const searchKeywords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 1);
+        console.log(`  🔍 検索キーワード: [${searchKeywords.join(', ')}]`);
+        
+        // まず部分一致で候補を絞り込む
+        const relevantTemplates = allTemplates.filter(t => {
+          const titleLower = t.title.toLowerCase();
+          return searchKeywords.some(keyword => titleLower.includes(keyword));
+        });
+        
+        console.log(`  🔍 関連候補: ${relevantTemplates.length}件 → ${relevantTemplates.slice(0, 5).map(t => t.title).join(', ')}`);
+        
+        const scoredTemplates = relevantTemplates.map(t => {
+          const score = calculateMatchScore(translatedName, t.title);
+          console.log(`    "${t.title}" → ${score.score}点 (${score.reason})`);
+          return {
+            template: t,
+            ...score
+          };
+        }).filter(item => item.score > 0).sort((a, b) => b.score - a.score);
+        
+        console.log(`  ✅ 最終候補数: ${scoredTemplates.length}`);
+        
+        if (scoredTemplates.length > 0) {
+          const best = scoredTemplates[0];
+          console.log(`  → ベストマッチ: "${best.title}" (${best.score}点: ${best.reason})`);
+          
+          if (best.score >= 800) {
+            const match = best.template;
+            const tplIdInput = exNode.querySelector('.tplId');
+            tplIdInput.value = match.id;
+            tplIdInput.style.borderColor = '#15c27a';
+            tplIdInput.style.background = '#0a2a1a';
+            console.log(`  → ✅ 自動入力: ${match.id}`);
+            matchCount++;
+          } else {
+            // 💎 800点未満でもトップ10候補を表示
+            console.log(`  → 💎 スコア不足 (${best.score} < 800) - 候補を表示`);
+            showInlineSuggestions(exNode, exerciseName, scoredTemplates);
+          }
+        } else {
+          console.log(`  → ❌ マッチなし - 手動検索をお試しください（🔍ボタン）`);
+        }
+      });
+      
+      if (matchCount > 0) {
+        info.innerHTML = `<div class="success-box"><p class="ok" style="margin: 0;">✓ ${matchCount}/${exercises.length}種目のテンプレートIDを自動入力しました</p></div>`;
+      } else {
+        info.innerHTML = `<p class="err">⚠️ テンプレートIDが見つかりませんでした。手動で入力してください。</p>`;
+      }
+    }
+    
+    // 💎 インライン候補表示機能
+    function showInlineSuggestions(exNode, exerciseName, scoredTemplates) {
+      const container = exNode.querySelector('.inline-suggestions-container');
+      if (!container) return;
+      
+      const topCandidates = scoredTemplates.slice(0, 10);  // 5件 → 10件に増加
+      
+      if (topCandidates.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      
+      let html = '<div class="inline-suggestions">';
+      html += '<div style="font-size:0.8rem; color:var(--muted); margin-bottom:6px;">💡 候補（クリックで選択）:</div>';
+      
+      topCandidates.forEach(item => {
+        html += `
+          <div class="inline-suggestion-item" onclick="selectTemplate(this, '${item.template.id}', '${item.template.title.replace(/'/g, "\\'")}', '${exerciseName.replace(/'/g, "\\'")}')">
+            <span>${item.template.title}</span>
+            <span style="color:var(--muted); font-size:0.75rem;">${item.score}点 (${item.reason})</span>
+          </div>
+        `;
+      });
+      
+      // もっと検索ボタン
+      if (scoredTemplates.length > 10) {
+        html += `
+          <button type="button" class="btn ghost" style="width:100%; margin-top:6px; font-size:0.75rem;" 
+                  onclick="showExpandedSearch(this, '${exerciseName.replace(/'/g, "\\'")}')">
+            🔍 もっと検索 (残り${scoredTemplates.length - 10}件)
+          </button>
+        `;
+      }
+      
+      html += '</div>';
+      container.innerHTML = html;
+    }
+    
+    // 🔍 候補選択時の処理
+    function selectTemplate(element, templateId, templateTitle, exerciseName) {
+      const exNode = element.closest('.exercise');
+      const tplIdInput = exNode.querySelector('.tplId');
+      
+      // テンプレートIDを入力
+      tplIdInput.value = templateId;
+      tplIdInput.style.borderColor = '#15c27a';
+      tplIdInput.style.background = '#0a2a1a';
+      
+      // 🧠 学習データとして保存
+      saveLearnedMapping(exerciseName, templateId, templateTitle);
+      
+      // 候補リストを非表示
+      const container = exNode.querySelector('.inline-suggestions-container');
+      if (container) {
+        container.innerHTML = '<div style="font-size:0.8rem; color:var(--ok); padding:8px;">✓ 選択済み: ' + templateTitle + ' 🧠学習済み</div>';
+      }
+      
+      console.log(`✅ 選択: "${exerciseName}" → "${templateTitle}" (ID: ${templateId})`);
+    }
+    
+    // 🔍 手動検索（🔍ボタン）
+    function searchInline(buttonElement) {
+      const exNode = buttonElement.closest('.exercise');
+      const exerciseName = exNode.querySelector('.exNote').value.trim() || exNode.dataset.exerciseName;
+      
+      if (!exerciseName) {
+        alert('エクササイズ名を入力してください');
+        return;
+      }
+      
+      if (allTemplates.length === 0) {
+        alert('先にAPIキーの接続テストを実行してください');
+        return;
+      }
+      
+      console.log(`🔍 インライン検索: "${exerciseName}"`);
+      
+      // 翻訳辞書（searchAndFillTemplateIds内と同じもの）
+      const translateToEnglish = (japaneseText) => {
+        const dictionary = {
+          'スミス・スクワット': 'Smith Machine Squat',
+          'スミススクワット': 'Smith Machine Squat',
+          'ルーマニアン・デッドリフト': 'Romanian Deadlift',
+          'ルーマニアンデッドリフト': 'Romanian Deadlift',
+          'RDL': 'Romanian Deadlift',
+          'ベンチプレス': 'Bench Press',
+          'ヒップスラスト': 'Hip Thrust',
+          'ヒップ・スラスト': 'Hip Thrust',
+          'バーベル・ヒップスラスト': 'Barbell Hip Thrust',
+          'ノルディック・ハム': 'Nordic Hamstring Curl',
+          'ノルディックハム': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディックハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリング': 'Nordic Hamstring Curl',
+          'ノルディックハムストリング': 'Nordic Hamstring Curl',
+          'ノルディックカール': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディックハムストリングス': 'Nordic Hamstring Curl',
+          'サイド・ヒップリフト': 'Side Hip Raise',
+          'サイドヒップリフト': 'Side Hip Raise',
+          'サイドレッグレイズ': 'Side Leg Raise',
+          '片脚・カーフレイズ': 'Single Leg Calf Raise',
+          '片脚カーフレイズ': 'Single Leg Calf Raise',
+          '片脚カーフ': 'Single Leg Calf Raise',
+          'カーフレイズ': 'Calf Raise',
+          'フロント・プランク': 'Front Plank',
+          'フロントプランク': 'Front Plank',
+          'プランク': 'Plank',
+          'ブルガリアン・スクワット': 'Bulgarian Split Squat',
+          'ブルガリアンスクワット': 'Bulgarian Split Squat',
+          'バーベル・フロント・スクワット': 'Barbell Front Squat',
+          'バーベルフロントスクワット': 'Barbell Front Squat',
+          'フロントスクワット': 'Front Squat',
+          'バーベル・スクワット': 'Barbell Squat',
+          'バーベルスクワット': 'Barbell Squat',
+          'スクワット': 'Squat',
+          'ゴブレットスクワット': 'Goblet Squat',
+          'ハンギング・ニーレイズ': 'Hanging Knee Raise',
+          'ハンギングニーレイズ': 'Hanging Knee Raise',
+          'ニーレイズ': 'Knee Raise',
+          'ケーブル・ウッドチョップ': 'Cable Wood Chop',
+          'ケーブルウッドチョップ': 'Cable Wood Chop',
+          'ウッドチョップ': 'Wood Chop',
+          'バンド・ヒップアダクション': 'Hip Adduction Band',
+          'ヒップアダクション': 'Hip Adduction',
+          'ヒップ・アダクション': 'Hip Adduction',
+          'バンド・ヒップアブダクション': 'Hip Abduction Band',
+          'ヒップアブダクション': 'Hip Abduction',
+          'ヒップ・アブダクション': 'Hip Abduction',
+          '股関節バック・エクステンション': 'Hip Extension',
+          '片脚股関節バック・エクステンション': 'Single Leg Hip Extension',
+          'カーフレイズ（レッグプレス）': 'Leg Press Calf Raise',
+          'レッグプレス': 'Leg Press',
+          'レッグ・プレス': 'Leg Press',
+          'レッグエクステンション': 'Leg Extension',
+          'レッグ・エクステンション': 'Leg Extension',
+          'レッグカール': 'Leg Curl',
+          'レッグ・カール': 'Leg Curl',
+          'ライイング・レッグカール': 'Lying Leg Curl',
+          'ライイングレッグカール': 'Lying Leg Curl',
+          'シーテッド・レッグカール': 'Seated Leg Curl',
+          'シーテッドレッグカール': 'Seated Leg Curl',
+          'スタンディング・レッグカール': 'Standing Leg Curl',
+          'スタンディングレッグカール': 'Standing Leg Curl'
+        };
+        
+        const cleaned = japaneseText.replace(/[（(].*?[)）]/g, '').trim();
+        if (dictionary[cleaned]) {
+          console.log(`    📖 辞書マッチ: "${cleaned}" → "${dictionary[cleaned]}"`);
+          return dictionary[cleaned];
+        }
+        
+        let translated = japaneseText;
+        const partialDict = {
+          'スミス': 'Smith Machine', 'バーベル': 'Barbell', 'ダンベル': 'Dumbbell',
+          'マシン': 'Machine', 'ケーブル': 'Cable', 'スクワット': 'Squat',
+          'デッドリフト': 'Deadlift', 'ベンチ': 'Bench', 'プレス': 'Press',
+          'プランク': 'Plank', 'カール': 'Curl', 'レイズ': 'Raise',
+          'ロウ': 'Row', 'プル': 'Pull', 'プッシュ': 'Push',
+          'リフト': 'Lift', 'スラスト': 'Thrust', 'ヒップ': 'Hip',
+          'レッグ': 'Leg', 'カーフ': 'Calf', 'フロント': 'Front',
+          'サイド': 'Side', 'バック': 'Back', 'ルーマニアン': 'Romanian',
+          'ブルガリアン': 'Bulgarian', 'ノルディック': 'Nordic',
+          '片脚': 'Single Leg', '両脚': 'Double Leg', '自重': 'Bodyweight',
+          'ハンギング': 'Hanging', 'ニー': 'Knee', 'ウッド': 'Wood',
+          'チョップ': 'Chop', 'バンド': 'Band', 'アダクション': 'Adduction',
+          'アブダクション': 'Abduction', 'ツイスト': 'Twist',
+          'ハムストリングス': 'Hamstring', 'ハムストリング': 'Hamstring', 'ハムストリングス': 'Hamstring'
+        };
+        
+        for (const [jp, en] of Object.entries(partialDict)) {
+          translated = translated.replace(new RegExp(jp, 'g'), en);
+        }
+        
+        return translated.replace(/[・、。]/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+      
+      const translatedName = translateToEnglish(exerciseName);
+      console.log(`   → 翻訳: "${translatedName}"`);
+      
+      // キーワード検索
+      const searchKeywords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 2);
+      console.log(`   キーワード: [${searchKeywords.join(', ')}]`);
+      
+      const candidates = allTemplates.filter(t => {
+        const titleLower = t.title.toLowerCase();
+        return searchKeywords.some(keyword => titleLower.includes(keyword));
+      }).slice(0, 30);
+      
+      if (candidates.length === 0) {
+        alert(`"${exerciseName}" に一致するテンプレートが見つかりませんでした。`);
+        return;
+      }
+      
+      // スコアリング（簡易版）
+      const scoredTemplates = candidates.map(t => ({
+        template: t,
+        score: 500,
+        reason: 'キーワード一致',
+        title: t.title
+      }));
+      
+      showInlineSuggestions(exNode, exerciseName, scoredTemplates);
+    }
+    
+    // 🔍 拡張検索（もっと検索ボタン）
+    function showExpandedSearch(buttonElement, exerciseName) {
+      const exNode = buttonElement.closest('.exercise');
+      
+      // 翻訳して全候補を取得
+      const translateToEnglish = (japaneseText) => {
+        const dictionary = {
+          'スミス・スクワット': 'Smith Machine Squat',
+          'スミススクワット': 'Smith Machine Squat',
+          'ルーマニアン・デッドリフト': 'Romanian Deadlift',
+          'ルーマニアンデッドリフト': 'Romanian Deadlift',
+          'RDL': 'Romanian Deadlift',
+          'ベンチプレス': 'Bench Press',
+          'ヒップスラスト': 'Hip Thrust',
+          'ヒップ・スラスト': 'Hip Thrust',
+          'バーベル・ヒップスラスト': 'Barbell Hip Thrust',
+          'ノルディック・ハム': 'Nordic Hamstring Curl',
+          'ノルディックハム': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディックハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリング': 'Nordic Hamstring Curl',
+          'ノルディックハムストリング': 'Nordic Hamstring Curl',
+          'ノルディックカール': 'Nordic Hamstring Curl',
+          'ノルディック・ハムストリングス': 'Nordic Hamstring Curl',
+          'ノルディックハムストリングス': 'Nordic Hamstring Curl',
+          'サイド・ヒップリフト': 'Side Hip Raise',
+          'サイドヒップリフト': 'Side Hip Raise',
+          'サイドレッグレイズ': 'Side Leg Raise',
+          '片脚・カーフレイズ': 'Single Leg Calf Raise',
+          '片脚カーフレイズ': 'Single Leg Calf Raise',
+          '片脚カーフ': 'Single Leg Calf Raise',
+          'カーフレイズ': 'Calf Raise',
+          'フロント・プランク': 'Front Plank',
+          'フロントプランク': 'Front Plank',
+          'プランク': 'Plank',
+          'ブルガリアン・スクワット': 'Bulgarian Split Squat',
+          'ブルガリアンスクワット': 'Bulgarian Split Squat',
+          'バーベル・フロント・スクワット': 'Barbell Front Squat',
+          'バーベルフロントスクワット': 'Barbell Front Squat',
+          'フロントスクワット': 'Front Squat',
+          'バーベル・スクワット': 'Barbell Squat',
+          'バーベルスクワット': 'Barbell Squat',
+          'スクワット': 'Squat',
+          'ゴブレットスクワット': 'Goblet Squat',
+          'ハンギング・ニーレイズ': 'Hanging Knee Raise',
+          'ハンギングニーレイズ': 'Hanging Knee Raise',
+          'ニーレイズ': 'Knee Raise',
+          'ケーブル・ウッドチョップ': 'Cable Wood Chop',
+          'ケーブルウッドチョップ': 'Cable Wood Chop',
+          'ウッドチョップ': 'Wood Chop',
+          'バンド・ヒップアダクション': 'Hip Adduction Band',
+          'ヒップアダクション': 'Hip Adduction',
+          'ヒップ・アダクション': 'Hip Adduction',
+          'バンド・ヒップアブダクション': 'Hip Abduction Band',
+          'ヒップアブダクション': 'Hip Abduction',
+          'ヒップ・アブダクション': 'Hip Abduction',
+          '股関節バック・エクステンション': 'Hip Extension',
+          '片脚股関節バック・エクステンション': 'Single Leg Hip Extension',
+          'カーフレイズ（レッグプレス）': 'Leg Press Calf Raise',
+          'レッグプレス': 'Leg Press',
+          'レッグ・プレス': 'Leg Press',
+          'レッグエクステンション': 'Leg Extension',
+          'レッグ・エクステンション': 'Leg Extension',
+          'レッグカール': 'Leg Curl',
+          'レッグ・カール': 'Leg Curl',
+          'ライイング・レッグカール': 'Lying Leg Curl',
+          'ライイングレッグカール': 'Lying Leg Curl',
+          'シーテッド・レッグカール': 'Seated Leg Curl',
+          'シーテッドレッグカール': 'Seated Leg Curl',
+          'スタンディング・レッグカール': 'Standing Leg Curl',
+          'スタンディングレッグカール': 'Standing Leg Curl'
+        };
+        
+        const cleaned = japaneseText.replace(/[（(].*?[)）]/g, '').trim();
+        if (dictionary[cleaned]) {
+          console.log(`    📖 辞書マッチ: "${cleaned}" → "${dictionary[cleaned]}"`);
+          return dictionary[cleaned];
+        }
+        
+        let translated = japaneseText;
+        const partialDict = {
+          'スミス': 'Smith Machine', 'バーベル': 'Barbell', 'ダンベル': 'Dumbbell',
+          'マシン': 'Machine', 'ケーブル': 'Cable', 'スクワット': 'Squat',
+          'デッドリフト': 'Deadlift', 'ベンチ': 'Bench', 'プレス': 'Press',
+          'プランク': 'Plank', 'カール': 'Curl', 'レイズ': 'Raise',
+          'ロウ': 'Row', 'プル': 'Pull', 'プッシュ': 'Push',
+          'リフト': 'Lift', 'スラスト': 'Thrust', 'ヒップ': 'Hip',
+          'レッグ': 'Leg', 'カーフ': 'Calf', 'フロント': 'Front',
+          'サイド': 'Side', 'バック': 'Back', 'ルーマニアン': 'Romanian',
+          'ブルガリアン': 'Bulgarian', 'ノルディック': 'Nordic',
+          '片脚': 'Single Leg', '両脚': 'Double Leg', '自重': 'Bodyweight',
+          'ハンギング': 'Hanging', 'ニー': 'Knee', 'ウッド': 'Wood',
+          'チョップ': 'Chop', 'バンド': 'Band', 'アダクション': 'Adduction',
+          'アブダクション': 'Abduction', 'ツイスト': 'Twist',
+          'ハムストリングス': 'Hamstring', 'ハムストリング': 'Hamstring', 'ハムストリングス': 'Hamstring'
+        };
+        
+        for (const [jp, en] of Object.entries(partialDict)) {
+          translated = translated.replace(new RegExp(jp, 'g'), en);
+        }
+        
+        return translated.replace(/[・、。]/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+      
+      const translatedName = translateToEnglish(exerciseName);
+      const searchKeywords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 1);
+      
+      const candidates = allTemplates.filter(t => {
+        const titleLower = t.title.toLowerCase();
+        return searchKeywords.some(keyword => titleLower.includes(keyword));
+      });
+      
+      const scoredTemplates = candidates.map(t => ({
+        template: t,
+        score: 500,
+        reason: 'キーワード一致',
+        title: t.title
+      }));
+      
+      // 全候補を表示（最大50件）
+      showInlineSuggestions(exNode, exerciseName, scoredTemplates.slice(0, 50));
+    }
+    
+    function completeStep2() {
+      // バリデーション
+      const title = document.getElementById('title').value.trim();
+      const startTime = document.getElementById('startTime').value;
+      const endTime = document.getElementById('endTime').value;
+      const exercises = exList.querySelectorAll('.exercise');
+      
+      if (!title) {
+        alert('タイトルを入力してください');
+        return;
+      }
+      if (!startTime || !endTime) {
+        alert('開始日時と終了日時を入力してください');
+        return;
+      }
+      if (exercises.length === 0) {
+        alert('最低1つのエクササイズを追加してください');
+        return;
+      }
+      
+      updateStepStatus('step2Card', 'complete');
+      updateStepStatus('step3Card', 'active');
+      goToStep(3);
+      refreshPreview();
+    }
+    
+    // ステップ3: 内容確認
+    function collectPayload() {
+      const title = document.getElementById('title').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      const startISO = toISO(start);
+      const endISO = toISO(end);
+      const isPrivate = document.getElementById('isPrivate').checked;
+      
+      const exercises = [...exList.querySelectorAll('.exercise')].map(ex => {
+        const tplId = ex.querySelector('.tplId').value.trim();
+        const note = ex.querySelector('.exNote').value.trim();
+        const sets = [...ex.querySelectorAll('.set')].map(s => {
+          const type = s.querySelector('.type').value.trim() || 'normal';
+          const w = s.querySelector('.w').value;
+          const r = s.querySelector('.r').value;
+          const dur = s.querySelector('.dur').value;
+          const dist = s.querySelector('.dist').value;
+          const rpe = s.querySelector('.rpe').value;
+          return {
+            type,
+            weight_kg: w !== '' ? parseFloat(w) : null,
+            reps: r !== '' ? parseInt(r, 10) : null,
+            distance_meters: dist !== '' ? parseFloat(dist) : null,
+            duration_seconds: dur !== '' ? parseInt(dur, 10) : null,
+            custom_metric: null,
+            rpe: rpe !== '' ? parseFloat(rpe) : null
+          };
+        }).filter(set => !(set.weight_kg===null && set.reps===null && set.duration_seconds===null && set.distance_meters===null));
+        
+        return { exercise_template_id: tplId, notes: note, sets };
+      }).filter(ex => ex.sets.length > 0);
+      
+      return {
+        workout: { 
+          title, 
+          description: description || null,  // 👍 空文字列の場合はnullに変換
+          start_time: startISO, 
+          end_time: endISO, 
+          is_private: isPrivate, 
+          exercises 
+        }
+      };
+    }
+    
+    function validate(payload) {
+      const e = [];
+      const w = payload.workout;
+      if(!w.title) e.push('タイトルが未入力です');
+      if(!w.start_time || !w.end_time) e.push('開始/終了のいずれかが未入力です');
+      if(w.start_time && w.end_time && new Date(w.start_time) >= new Date(w.end_time)) e.push('開始は終了より前である必要があります');
+      if(!w.exercises || w.exercises.length===0) e.push('最低1つのエクササイズ（1セット以上）が必要です');
+      for(let i=0;i<(w.exercises||[]).length;i++){
+        if(!w.exercises[i].exercise_template_id) e.push(`エクササイズ${i+1}: テンプレIDが未入力です`);
+      }
+      return e;
+    }
+    
+    function refreshPreview() {
+      const payload = collectPayload();
+      const errs = validate(payload);
+      const preview = document.getElementById('preview');
+      preview.textContent = JSON.stringify(payload, null, 2);
+      
+      const validationResult = document.getElementById('validationResult');
+      if (errs.length > 0) {
+        validationResult.innerHTML = `<div class="tips" style="border-left-color: var(--danger);"><p class="err" style="margin: 0;"><strong>⚠️ 検出された問題:</strong></p><ul style="margin: 8px 0 0; padding-left: 20px;">${errs.map(e => `<li>${e}</li>`).join('')}</ul></div>`;
+        document.getElementById('submitBtn').disabled = true;
+      } else {
+        validationResult.innerHTML = `<div class="success-box"><p class="ok" style="margin: 0;">✓ 送信可能な状態です</p></div>`;
+        document.getElementById('submitBtn').disabled = false;
+      }
+    }
+    
+    // 💎 インライン候補表示機能
+    function showInlineSuggestions(exNode, japaneseName, candidates) {
+      const container = exNode.querySelector('.inline-suggestions-container');
+      if (!container || candidates.length === 0) return;
+      
+      const exerciseName = exNode.dataset.exerciseName || japaneseName;
+      
+      const html = `
+        <div class="inline-suggestions">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <p style="margin: 0; font-size: 0.8rem; color: var(--muted);">💡 近似候補（クリックで選択）：</p>
+            <button class="btn ghost" style="padding: 4px 10px; font-size: 0.8rem;" onclick="event.stopPropagation(); searchInlineExpanded(this.closest('.exercise'))">🔍 もっと検索</button>
+          </div>
+          ${candidates.map(c => `
+            <div class="inline-suggestion-item" onclick="selectInlineSuggestion(this, '${exerciseName}', '${c.template.id}', '${c.template.title.replace(/'/g, "\\'")}')">
+              <div style="flex: 1;">
+                <div style="font-weight: 600;">${c.template.title}</div>
+                <div style="font-size: 0.75rem; color: var(--muted); margin-top: 2px;">ID: ${c.template.id} | ${c.score}点 - ${c.reason}</div>
+              </div>
+              <button class="btn ghost" style="padding: 4px 8px; font-size: 0.75rem; flex-shrink: 0;" onclick="event.stopPropagation(); copyToClipboard('${c.template.id}')">📋 コピー</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      container.innerHTML = html;
+    }
+    
+    function selectInlineSuggestion(element, japaneseName, templateId, templateTitle) {
+      const exNode = element.closest('.exercise');
+      const tplIdInput = exNode.querySelector('.tplId');
+      tplIdInput.value = templateId;
+      tplIdInput.style.borderColor = '#15c27a';
+      tplIdInput.style.background = '#0a2a1a';
+      
+      // 🧠 学習データに保存
+      saveLearnedMapping(japaneseName, templateId, templateTitle);
+      
+      // 候補リストを削除
+      const container = exNode.querySelector('.inline-suggestions-container');
+      if (container) {
+        container.innerHTML = `<p style="color: var(--ok); font-size: 0.85rem; margin: 8px 0;">✅ 選択完了 - 次回から自動的に適用されます 🧠</p>`;
+      }
+    }
+    
+    // 🔍 インライン検索機能（拡張版・「もっと検索」用）
+    function searchInlineExpanded(exNode) {
+      const exerciseName = exNode.dataset.exerciseName || '';
+      
+      if (!exerciseName || allTemplates.length === 0) {
+        alert('エクササイズ名が設定されていないか、テンプレートが取得されていません');
+        return;
+      }
+      
+      // 翻訳辞書を使用
+      const translateToEnglish = (text) => {
+        const dictionary = {
+          'ハンギング・ニーレイズ': 'Hanging Knee Raise',
+          'ケーブル・ウッドチョップ': 'Cable Wood Chop',
+          'バンド・ヒップアダクション': 'Hip Adduction Band',
+          'バンド・ヒップアブダクション': 'Hip Abduction Band'
+        };
+        
+        if (dictionary[text]) return dictionary[text];
+        
+        let translated = text;
+        const partialDict = {
+          'ハンギング': 'Hanging', 'ニー': 'Knee', 'レイズ': 'Raise',
+          'ケーブル': 'Cable', 'ウッド': 'Wood', 'チョップ': 'Chop',
+          'バンド': 'Band', 'ヒップ': 'Hip', 'アダクション': 'Adduction',
+          'アブダクション': 'Abduction'
+        };
+        
+        for (const [jp, en] of Object.entries(partialDict)) {
+          translated = translated.replace(new RegExp(jp, 'g'), en);
+        }
+        
+        return translated.replace(/[・、。]/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+      
+      const translatedName = translateToEnglish(exerciseName);
+      const searchKeywords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 2);
+      
+      console.log(`🔍 拡張検索: "${exerciseName}" → "${translatedName}"`);
+      console.log(`   キーワード: [${searchKeywords.join(', ')}]`);
+      
+      // より柔軟なフィルタリング
+      const candidates = allTemplates
+        .filter(t => {
+          const titleLower = t.title.toLowerCase();
+          return searchKeywords.some(keyword => titleLower.includes(keyword));
+        })
+        .map(t => ({ template: t, score: 500, reason: 'キーワード一致', title: t.title }))
+        .slice(0, 30); // トップ30候補
+      
+      if (candidates.length === 0) {
+        alert('候補が見つかりませんでした');
+        return;
+      }
+      
+      console.log(`   → ${candidates.length}件の候補を発見`);
+      showInlineSuggestions(exNode, exerciseName, candidates);
+    }
+    
+    // 🔍 インライン検索機能（通常版）
+    function searchInline(button) {
+      const exNode = button.closest('.exercise');
+      const exerciseName = exNode.dataset.exerciseName || '';
+      
+      if (!exerciseName) {
+        alert('エクササイズ名が設定されていません');
+        return;
+      }
+      
+      if (allTemplates.length === 0) {
+        alert('先にAPIキーの接続テストを実行してください');
+        return;
+      }
+      
+      // 翻訳辞書を使って検索（完全版）
+      const translateToEnglish = (text) => {
+        const dictionary = {
+          'スミス・スクワット': 'Smith Machine Squat',
+          'ルーマニアン・デッドリフト': 'Romanian Deadlift',
+          'ヒップスラスト': 'Hip Thrust',
+          'ノルディック・ハム': 'Nordic Hamstring Curl',
+          'サイド・ヒップリフト': 'Side Hip Raise',
+          '片脚カーフレイズ': 'Single Leg Calf Raise',
+          'カーフレイズ': 'Calf Raise',
+          'フロント・プランク': 'Front Plank',
+          'プランク': 'Plank',
+          'ブルガリアン・スクワット': 'Bulgarian Split Squat',
+          'バーベル・フロント・スクワット': 'Barbell Front Squat',
+          'バーベル・スクワット': 'Barbell Squat',
+          'スクワット': 'Squat',
+          'ベンチプレス': 'Bench Press',
+          'デッドリフト': 'Deadlift',
+          'ハンギング・ニーレイズ': 'Hanging Knee Raise',
+          'ケーブル・ウッドチョップ': 'Cable Wood Chop',
+          'バンド・ヒップアダクション': 'Hip Adduction Band',
+          'バンド・ヒップアブダクション': 'Hip Abduction Band'
+        };
+        
+        // 辞書にない場合は部分翻訳を試みる
+        if (dictionary[text]) return dictionary[text];
+        
+        let translated = text;
+        const partialDict = {
+          'ハンギング': 'Hanging', 'ニー': 'Knee', 'レイズ': 'Raise',
+          'ケーブル': 'Cable', 'ウッド': 'Wood', 'チョップ': 'Chop',
+          'バンド': 'Band', 'ヒップ': 'Hip', 'アダクション': 'Adduction',
+          'アブダクション': 'Abduction', 'バーベル': 'Barbell', 'ダンベル': 'Dumbbell'
+        };
+        
+        for (const [jp, en] of Object.entries(partialDict)) {
+          translated = translated.replace(new RegExp(jp, 'g'), en);
+        }
+        
+        return translated.replace(/[・、。]/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+      
+      const translatedName = translateToEnglish(exerciseName);
+      const searchKeywords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 2);
+      
+      console.log(`🔍 インライン検索: "${exerciseName}" → "${translatedName}"`);
+      console.log(`   キーワード: [${searchKeywords.join(', ')}]`);
+      
+      // キーワードでフィルタリング＆スコアリング
+      const calculateSimpleScore = (translatedName, templateTitle) => {
+        const translatedLower = translatedName.toLowerCase();
+        const titleLower = templateTitle.toLowerCase();
+        
+        // 完全一致
+        if (titleLower === translatedLower) return { score: 1000, reason: '完全一致' };
+        
+        // 正規化して完全一致
+        const normalizedTitle = templateTitle.replace(/[（(].*?[)）]/g, '').toLowerCase().replace(/[\s\-]/g, '');
+        const normalizedSearch = translatedName.replace(/[（(].*?[)）]/g, '').toLowerCase().replace(/[\s\-]/g, '');
+        if (normalizedTitle === normalizedSearch) return { score: 950, reason: '正規化一致' };
+        
+        // 部分一致
+        if (titleLower.includes(translatedLower) || translatedLower.includes(titleLower)) {
+          return { score: 800, reason: '部分一致' };
+        }
+        
+        // 単語レベルの一致
+        const translatedWords = translatedName.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 3);
+        const titleWords = templateTitle.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 3);
+        const matches = translatedWords.filter(w => titleWords.some(tw => tw.includes(w) || w.includes(tw)));
+        
+        if (matches.length > 0) {
+          const ratio = matches.length / translatedWords.length;
+          return { score: Math.floor(600 * ratio), reason: `単語一致(${matches.length}/${translatedWords.length})` };
+        }
+        
+        return { score: 300, reason: 'キーワード一致' };
+      };
+      
+      // フィルタリング＆スコアリング
+      const candidates = allTemplates
+        .filter(t => {
+          const titleLower = t.title.toLowerCase();
+          return searchKeywords.some(keyword => titleLower.includes(keyword));
+        })
+        .map(t => {
+          const scoreData = calculateSimpleScore(translatedName, t.title);
+          return {
+            template: t,
+            score: scoreData.score,
+            reason: scoreData.reason,
+            title: t.title
+          };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 20); // トップ20候補
+      
+      if (candidates.length === 0) {
+        alert('候補が見つかりませんでした。\n別のキーワードで試すか、「📋 エクササイズ一覧」から直接検索してください。');
+        return;
+      }
+      
+      console.log(`   → ${candidates.length}件の候補を発見`);
+      showInlineSuggestions(exNode, exerciseName, candidates);
+    }
+    
+    // ステップ4: 登録実行
+    async function submitWorkout() {
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '送信中...';
+      
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const payload = collectPayload();
+      const responseArea = document.getElementById('responseArea');
+      
+      try {
+        const r = await fetch('https://api.hevyapp.com/v1/workouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+          body: JSON.stringify(payload)
+        });
+        const text = await r.text();
+        let body; try{ body = JSON.parse(text); } catch{ body = { raw:text }; }
+        
+        if (r.status === 201) {
+          // 🧠 登録成功時：使用したマッピングを学習データに保存
+          const exercises = exList.querySelectorAll('.exercise');
+          exercises.forEach(exNode => {
+            const exerciseName = exNode.dataset.exerciseName;
+            const tplId = exNode.querySelector('.tplId').value.trim();
+            if (exerciseName && tplId) {
+              const template = allTemplates.find(t => t.id === tplId);
+              if (template) {
+                saveLearnedMapping(exerciseName, tplId, template.title);
+              }
+            }
+          });
+          
+          responseArea.innerHTML = `
+            <div class="success-box">
+              <h3 style="margin: 0 0 12px; color: var(--ok);">🎉 登録成功！</h3>
+              <p style="margin: 0 0 8px;">ワークアウトがHEVYに登録されました。アプリで確認してください。</p>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--muted);">🧠 エクササイズのマッピングを学習しました。次回から自動的に適用されます。</p>
+            </div>
+            <details style="margin-top: 16px;">
+              <summary style="cursor: pointer; color: var(--acc);">📄 レスポンス詳細</summary>
+              <pre style="margin-top: 12px;">${JSON.stringify(body, null, 2)}</pre>
+            </details>
+          `;
+          updateStepStatus('step4Card', 'complete');
+          document.getElementById('resetBtn').style.display = 'block';
+        } else {
+          responseArea.innerHTML = `
+            <div class="tips" style="border-left-color: var(--danger);">
+              <h3 style="margin: 0 0 12px; color: var(--danger);">❌ 登録失敗</h3>
+              <p style="margin: 0 0 8px;"><strong>ステータスコード:</strong> ${r.status}</p>
+              <p style="margin: 0;"><strong>メッセージ:</strong> ${r.statusText}</p>
+            </div>
+            <pre style="margin-top: 16px;">${JSON.stringify(body, null, 2)}</pre>
+          `;
+          btn.disabled = false;
+          btn.textContent = '📤 再試行';
+        }
+        
+        updateStepStatus('step3Card', 'complete');
+        updateStepStatus('step4Card', 'active');
+        goToStep(4);
+        
+      } catch (e) {
+        responseArea.innerHTML = `
+          <div class="tips" style="border-left-color: var(--danger);">
+            <h3 style="margin: 0 0 12px; color: var(--danger);">❌ ネットワークエラー</h3>
+            <p style="margin: 0;">${e.message}</p>
+          </div>
+        `;
+        btn.disabled = false;
+        btn.textContent = '📤 再試行';
+      }
+    }
+    
+    function resetAll() {
+      if (confirm('すべてのデータをクリアして最初からやり直しますか？')) {
+        location.reload();
+      }
+    }
+    
+    // 🧠 学習データ管理
+    function showLearningModal() {
+      const modal = document.getElementById('learningModal');
+      const listDiv = document.getElementById('learningDataList');
+      modal.classList.add('show');
+      
+      const mappings = getLearnedMappings();
+      const entries = Object.entries(mappings).sort((a, b) => b[1].lastUsed - a[1].lastUsed);
+      
+      if (entries.length === 0) {
+        listDiv.innerHTML = '<p style="text-align: center; color: var(--muted); padding: 40px;">まだ学習データがありません</p>';
+        return;
+      }
+      
+      listDiv.innerHTML = `
+        <table class="template-table">
+          <thead>
+            <tr>
+              <th>日本語名</th>
+              <th>マッチング先</th>
+              <th style="width:120px;">テンプレートID</th>
+              <th style="width:80px;">使用回数</th>
+              <th style="width:100px;">アクション</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${entries.map(([jpName, data]) => `
+              <tr>
+                <td><strong>${jpName}</strong></td>
+                <td>${data.title}</td>
+                <td><code style="font-size: 0.85rem;">${data.id}</code></td>
+                <td style="text-align: center;">${data.count}回</td>
+                <td style="text-align: center;">
+                  <button class="btn" style="background: var(--danger); border-color: var(--danger); padding: 6px 12px; font-size: 0.85rem;" 
+                          onclick="deleteLearningData('${jpName}')">削除</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    function deleteLearningData(japaneseName) {
+      if (!confirm(`「${japaneseName}」の学習データを削除しますか？`)) return;
+      
+      const mappings = getLearnedMappings();
+      const normalized = japaneseName.toLowerCase().trim();
+      delete mappings[normalized];
+      localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(mappings));
+      
+      showLearningModal(); // リフレッシュ
+    }
+    
+    function clearAllLearningData() {
+      if (!confirm('すべての学習データを削除しますか？この操作は取り消せません。')) return;
+      
+      localStorage.removeItem(LEARNING_STORAGE_KEY);
+      showLearningModal(); // リフレッシュ
+    }
+    
+    // モーダル関連
+    function showTemplatesModal() {
+      const modal = document.getElementById('templatesModal');
+      const tbody = document.getElementById('templateTableBody');
+      modal.classList.add('show');
+      
+      if (allTemplates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#ff5566;">⚠️ 先にAPIキーの接続テストを実行してください</td></tr>';
+        return;
+      }
+      
+      renderTemplateTable(allTemplates);
+    }
+    
+    function renderTemplateTable(templates) {
+      const tbody = document.getElementById('templateTableBody');
+      const favorites = getFavorites();
+      
+      tbody.innerHTML = templates.map(t => `
+        <tr>
+          <td>
+            <span class="favorite-star ${favorites[t.id] ? 'active' : ''}" 
+                  data-id="${t.id}" 
+                  data-title="${t.title}"
+                  onclick="toggleFavorite('${t.id}', '${t.title.replace(/'/g, "\\'")}', this)">
+              ${favorites[t.id] ? '★' : '☆'}
+            </span>
+          </td>
+          <td>${t.title}</td>
+          <td><code style="font-size:0.85rem;">${t.id}</code></td>
+          <td>
+            <button class="copy-id-btn" onclick="copyToClipboard('${t.id}', this)">📋 コピー</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function filterTemplates() {
+      const query = document.getElementById('templateSearch').value.toLowerCase();
+      const filtered = allTemplates.filter(t => t.title.toLowerCase().includes(query));
+      renderTemplateTable(filtered);
+    }
+    
+    function showFavoritesModal() {
+      const modal = document.getElementById('favoritesModal');
+      const list = document.getElementById('favoritesList');
+      const favorites = getFavorites();
+      
+      if (Object.keys(favorites).length === 0) {
+        list.innerHTML = '<p style="color: var(--muted); text-align:center; padding:40px;">お気に入りがまだありません。<br>エクササイズ一覧から⭐をクリックして追加してください。</p>';
+      } else {
+        list.innerHTML = Object.entries(favorites).map(([id, title]) => `
+          <div style="background: #0e141b; border: 1px solid #1e2a36; padding: 16px; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${title}</strong><br>
+              <code style="font-size:0.85rem; color:#a9b6c6;">${id}</code>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn" onclick="copyToClipboard('${id}', this)">📋 コピー</button>
+              <button class="btn" style="background: var(--danger); border-color: var(--danger);" onclick="removeFavorite('${id}')">削除</button>
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      modal.classList.add('show');
+    }
+    
+    // お気に入り管理
+    function getFavorites() {
+      return JSON.parse(localStorage.getItem('hevyFavorites') || '{}');
+    }
+    
+    function saveFavorites(favs) {
+      localStorage.setItem('hevyFavorites', JSON.stringify(favs));
+    }
+    
+    function toggleFavorite(id, title, element) {
+      const favs = getFavorites();
+      const isActive = favs[id];
+      
+      if (isActive) {
+        delete favs[id];
+        element.textContent = '☆';
+        element.classList.remove('active');
+      } else {
+        favs[id] = title;
+        element.textContent = '★';
+        element.classList.add('active');
+      }
+      
+      saveFavorites(favs);
+    }
+    
+    function removeFavorite(id) {
+      const favs = getFavorites();
+      delete favs[id];
+      saveFavorites(favs);
+      showFavoritesModal(); // リフレッシュ
+    }
+    
+    function copyToClipboard(text, button) {
+      navigator.clipboard.writeText(text);
+      const originalText = button.textContent;
+      button.textContent = '✓ コピー済み';
+      setTimeout(() => button.textContent = originalText, 2000);
+    }
+    
+    // 初期化（DOMロード後に実行）
+    // 🧠 初期学習データの設定
+    function initializeDefaultLearning() {
+      const mappings = getLearnedMappings();
+      
+      // 初期学習データのマッピング
+      const defaultMappings = [
+        // スクワット系
+        { names: ['スクワット', 'バーベル・スクワット', 'バーベルスクワット', 'スクワットバーベル'], id: 'D04AC939', title: 'Barbell Squat' },
+        // グッド・モーニング
+        { names: ['グッド・モーニング', 'グッドモーニング'], id: '4180C405', title: 'Good Morning' },
+        // デクライン・レッグレイズ（Lying Leg Raiseとして登録）
+        { names: ['デクライン・レッグレイズ', 'デクラインレッグレイズ'], id: '09C9F635', title: 'Lying Leg Raise' },
+        // バイセプス・チンアップ（Chin Upとして登録）
+        { names: ['バイセプス・チンアップ', 'バイセプスチンアップ', 'チンアップ'], id: '29083183', title: 'Chin Up' }
+      ];
+      
+      let addedCount = 0;
+      defaultMappings.forEach(mapping => {
+        mapping.names.forEach(variant => {
+          const normalized = variant.toLowerCase().trim();
+          if (!mappings[normalized]) {
+            mappings[normalized] = {
+              id: mapping.id,
+              title: mapping.title,
+              count: 1,
+              lastUsed: Date.now()
+            };
+            addedCount++;
+          }
+        });
+      });
+      
+      if (addedCount > 0) {
+        try {
+          localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(mappings));
+          console.log(`🧠 初期学習データを設定しました (${addedCount}件のバリエーション)`);
+        } catch (e) {
+          console.error('初期学習データの保存エラー:', e);
+        }
+      }
+    }
+    
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 HEVY Workout Tool v6.3 - 未来のトレーニング登録対応');
+      
+      // 🧠 初期学習データを設定
+      initializeDefaultLearning();
+      console.log('📝 対応形式:');
+      console.log('  ✅ 従来形式（コロン区切り）');
+      console.log('  ✅ HEVYエクスポート形式（番号付き・bullet point）');
+      console.log('  ✅ 日本語日付（8月29日）');
+      console.log('  ✅ デフォルト時刻: 9:00-10:30');
+      
+      // 🔒 APIキーを自動復元
+      const hasApiKey = loadApiKey();
+      if (hasApiKey) {
+        console.log('✅ 保存済みAPIキーを自動復元しました');
+      } else {
+        console.log('ℹ️ 保存済みAPIキーはありません。初回入力後に自動保存されます。');
+      }
+      
+      // 📦 テンプレートを自動復元
+      const savedData = loadTemplates();
+      if (savedData) {
+        allTemplates = savedData.templates;
+        const savedDate = new Date(savedData.timestamp);
+        const resultDiv = document.getElementById('apiTestResult');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `<div class="success-box">
+          <p class="ok" style="margin: 0 0 8px;">✅ 保存済みテンプレート ${allTemplates.length}件を復元しました</p>
+          <p style="font-size: 0.85rem; color: var(--muted); margin: 4px 0 0;">📦 取得日時: ${savedDate.toLocaleString('ja-JP')}</p>
+          <p style="font-size: 0.75rem; color: var(--muted); margin: 8px 0 0;">💡 最新データに更新する場合は「🔄 テンプレートを再取得」ボタンをクリック</p>
+        </div>`;
+        document.getElementById('step1NextBtn').disabled = false;
+        console.log('✅ 保存済みテンプレートを自動復元しました');
+      } else {
+        console.log('ℹ️ 保存済みテンプレートはありません。初回API接続時に自動保存されます。');
+      }
+      
+      // 📅 デフォルト時刻の設定（時刻が空の場合のみ）
+      const startTimeInput = document.getElementById('startTime');
+      const endTimeInput = document.getElementById('endTime');
+      
+      if (!startTimeInput.value) {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        startTimeInput.value = `${year}-${month}-${day}T09:00`;
+        endTimeInput.value = `${year}-${month}-${day}T10:30`;
+        console.log('📅 デフォルト時刻を設定しました: 9:00-10:30');
+      }
+    });
+  </script>
+</body>
+</html>
