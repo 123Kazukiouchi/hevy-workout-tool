@@ -27,6 +27,9 @@ class HevyWorkoutApp {
     this.templates = [];
     this.learning = {};
     this.currentWorkout = null;
+    this.workoutMode = 'past'; // 'past' or 'future'
+    this.workoutHistory = []; // 過去のワークアウト記録
+    this.futureWorkouts = []; // 次回のワークアウト予定
 
     this.init();
   }
@@ -61,7 +64,23 @@ class HevyWorkoutApp {
   loadSavedData() {
     this.learning = Storage.getLearningData();
     this.preferences = Storage.getPreferences();
+    
+    // ワークアウト履歴を読み込み
+    const history = Storage.getWorkoutHistory();
+    if (history && Array.isArray(history)) {
+      this.workoutHistory = history.filter(w => {
+        const datetime = new Date(w.datetime);
+        return datetime <= new Date();
+      });
+      this.futureWorkouts = history.filter(w => {
+        const datetime = new Date(w.datetime);
+        return datetime > new Date();
+      });
+    }
+    
     console.log('✅ Saved data loaded');
+    console.log(`   - 過去のワークアウト: ${this.workoutHistory.length}件`);
+    console.log(`   - 次回のワークアウト予定: ${this.futureWorkouts.length}件`);
   }
 
   /**
@@ -232,9 +251,24 @@ class HevyWorkoutApp {
    * ワークアウトフォーム送信
    */
   handleWorkoutFormSubmit(e) {
-    const { name, description } = e.detail;
-    this.currentWorkout = { name, description, exercises: [] };
-    console.log('📝 Workout created:', this.currentWorkout);
+    const { name, description, datetime, type } = e.detail;
+    
+    this.workoutMode = type;
+    this.currentWorkout = { 
+      name, 
+      description, 
+      datetime,
+      type,
+      exercises: [],
+    };
+    
+    const modeLabel = type === 'past' ? '📋 過去の記録' : '📅 次回の予定';
+    console.log(`${modeLabel} を作成中:`, this.currentWorkout);
+    
+    // 日時を表示
+    const dateObj = new Date(datetime);
+    const dateStr = dateObj.toLocaleString('ja-JP');
+    console.log(`   日時: ${dateStr}`);
   }
 
   /**
@@ -330,29 +364,50 @@ class HevyWorkoutApp {
    * ワークアウトを登録
    */
   async submitWorkout() {
-    if (!this.hevyAPI || !this.currentWorkout) {
-      alert('Hevy API が設定されておらず、またはワークアウトが作成されていません');
+    if (!this.currentWorkout) {
+      alert('ワークアウトが作成されていません');
       return;
     }
 
     try {
       const workoutData = Parser.formatForHevyAPI(this.currentWorkout);
-      const result = await this.hevyAPI.createWorkout(workoutData);
+      workoutData.type = this.currentWorkout.type;
+      workoutData.datetime = this.currentWorkout.datetime;
 
-      console.log('✅ Workout submitted:', result);
-      alert('✅ ワークアウトが正常に登録されました');
+      // Hevy API に登録
+      if (this.hevyAPI) {
+        const result = await this.hevyAPI.createWorkout(workoutData);
+        console.log('✅ Workout submitted to Hevy API:', result);
+      }
 
-      // 履歴に追加
+      // ローカルストレージに保存
       const history = Storage.getWorkoutHistory();
-      history.push({
+      const workoutRecord = {
         ...workoutData,
+        id: `workout_${Date.now()}`,
         registeredAt: new Date().toISOString(),
-        result,
-      });
+        datetime: this.currentWorkout.datetime,
+        type: this.currentWorkout.type,
+      };
+      history.push(workoutRecord);
       Storage.saveWorkoutHistory(history);
+
+      // モードごとに分類
+      const workoutDate = new Date(this.currentWorkout.datetime);
+      if (this.currentWorkout.type === 'past' || workoutDate <= new Date()) {
+        this.workoutHistory.push(workoutRecord);
+        console.log('✅ 過去のワークアウト記録に追加されました');
+      } else {
+        this.futureWorkouts.push(workoutRecord);
+        console.log('✅ 次回のワークアウト予定に追加されました');
+      }
+
+      const modeLabel = this.currentWorkout.type === 'past' ? '📋 過去の記録' : '📅 次回の予定';
+      alert(`✅ ${modeLabel}が正常に登録されました`);
 
       // リセット
       this.currentWorkout = null;
+      this.workoutForm.setState({ workoutType: this.workoutMode, date: new Date().toISOString().split('T')[0] });
     } catch (error) {
       console.error('❌ Workout submission error:', error);
       alert(`❌ エラーが発生しました: ${error.message}`);

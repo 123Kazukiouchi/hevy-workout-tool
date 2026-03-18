@@ -1,0 +1,573 @@
+/**
+ * HEVY Workout Tool スタイル
+ * v7.0 - モダンUI/UX
+ */
+
+:root {
+  --bg: #0b0f14;
+  --card: #131a22;
+  --ink: #e6eef7;
+  --muted: #a9b6c6;
+  --acc: #4aa3ff;
+  --danger: #ff5566;
+  --ok: #15c27a;
+  --warning: #ffa500;
+  --step-inactive: #1e2a36;
+  --step-active: #4aa3ff;
+  --step-complete: #15c27a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+h3 {
+  font-size: 1.1rem;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+
+/* ステップインジケーター */
+.step-indicator {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 0 5px;
+}
+
+.step {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--step-inactive);
+  z-index: -1;
+}
+
+.step.complete:not(:last-child)::after {
+  background: var(--step-complete);
+}
+
+.step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--step-inactive);
+  border: 2px solid var(--step-inactive);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px;
+  font-weight: 700;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+}
+
+.step.active .step-circle {
+  background: var(--step-active);
+  border-color: var(--step-active);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(74, 163, 255, 0.4);
+}
+
+.step.complete .step-circle {
+  background: var(--step-complete);
+  border-color: var(--step-complete);
+  color: #fff;
+}
+
+.step.complete .step-circle::before {
+  content: '✓';
+}
+
+.step-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.step.active .step-label {
+  color: var(--acc);
+  font-weight: 600;
+}
+
+.step.complete .step-label {
+  color: var(--ok);
+}
+
+/* カードスタイル */
+.card {
+  background: var(--card);
+  border: 1px solid #1e2a36;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card.collapsed .card-content {
+  display: none;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-header .status-badge {
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.pending {
+  background: #1e2a36;
+  color: var(--muted);
+}
+
+.status-badge.complete {
+  background: rgba(21, 194, 122, 0.2);
+  color: var(--ok);
+  border: 1px solid var(--ok);
+}
+
+.status-badge.active {
+  background: rgba(74, 163, 255, 0.2);
+  color: var(--acc);
+  border: 1px solid var(--acc);
+}
+
+.expand-icon {
+  color: var(--muted);
+  transition: transform 0.3s;
+  font-size: 0.8rem;
+}
+
+.card.collapsed .expand-icon {
+  transform: rotate(180deg);
+}
+
+/* ワークアウトフォーム */
+.workout-form {
+  padding: 0;
+}
+
+.form-header {
+  margin-bottom: 16px;
+}
+
+.form-header h3 {
+  margin-bottom: 12px;
+}
+
+/* モード切り替えトグル */
+.workout-type-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.type-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid #1e2a36;
+  background: #0e141b;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.3s;
+}
+
+.type-btn:hover {
+  border-color: #3b5f83;
+}
+
+.type-btn.active {
+  border-color: var(--acc);
+  background: rgba(74, 163, 255, 0.1);
+  color: var(--acc);
+  box-shadow: 0 0 12px rgba(74, 163, 255, 0.2);
+}
+
+/* フォーム要素 */
+.form-section {
+  margin-bottom: 12px;
+}
+
+label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input[type='text'],
+input[type='number'],
+input[type='datetime-local'],
+textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #263648;
+  background: #0e141b;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  font-size: 0.9rem;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--acc);
+  box-shadow: 0 0 8px rgba(74, 163, 255, 0.2);
+}
+
+input.valid {
+  border-color: var(--ok);
+}
+
+textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* クイック日付ボタン */
+.quickdate-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.btn.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  flex: 1;
+  min-width: 80px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.row > * {
+  flex: 1;
+}
+
+/* ボタン */
+.btn {
+  appearance: none;
+  border: 1px solid #29425c;
+  background: #112132;
+  color: var(--ink);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-size: 0.85rem;
+}
+
+.btn:hover {
+  border-color: #3b5f83;
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #1b4b7a, #153a5e);
+  border-color: #2f5e8a;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, #245a8f, #1a4470);
+}
+
+.btn-success {
+  background: linear-gradient(180deg, #0e6f45, #0a5234);
+  border-color: #15c27a;
+  color: var(--ok);
+}
+
+.btn-success:hover {
+  background: linear-gradient(180deg, #107a50, #0b5a3a);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.btn-ghost:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.btn-ai {
+  background: linear-gradient(180deg, #4a1a7a, #2d0f4e);
+  border-color: #7c3aed;
+  color: #c4b5fd;
+}
+
+.btn-ai:hover {
+  border-color: #a78bfa;
+  background: linear-gradient(180deg, #5a2a8a, #3d1f5e);
+}
+
+.btn-ai:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* エクササイズリスト */
+.exercise-list {
+  padding: 0;
+}
+
+.exercise-list h3 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.exercise-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.exercise-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: #0e141b;
+  border: 1px solid #263648;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.exercise-list li strong {
+  flex: 1;
+  font-weight: 600;
+}
+
+.sets-info {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-right: 8px;
+}
+
+.btn-remove {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  background: rgba(255, 85, 102, 0.1);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-remove:hover {
+  background: rgba(255, 85, 102, 0.2);
+}
+
+.exercise-list p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+  background: #0e141b;
+  border-radius: 6px;
+}
+
+/* AI アシスタント */
+.ai-assistant {
+  padding: 0;
+}
+
+.ai-header {
+  margin-bottom: 12px;
+}
+
+.ai-header h3 {
+  margin-bottom: 4px;
+}
+
+.ai-header .subtitle {
+  margin: 4px 0;
+}
+
+.ai-input {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 2px solid #263648;
+  background: #0e141b;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.3s;
+}
+
+.ai-input:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.2);
+}
+
+.ai-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-result {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(21, 194, 122, 0.1);
+  border: 1px solid var(--ok);
+  border-radius: 6px;
+}
+
+.ai-result h4 {
+  margin: 0 0 8px;
+  color: var(--ok);
+  font-size: 0.9rem;
+}
+
+.ai-result pre {
+  margin: 8px 0;
+  padding: 8px;
+  background: #0e141b;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.ai-result button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.ai-error {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(255, 85, 102, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+}
+
+.ai-error p {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  body {
+    padding: 12px;
+  }
+
+  .workout-type-toggle {
+    flex-direction: column;
+  }
+
+  .type-btn {
+    width: 100%;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .exercise-list li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .btn-remove {
+    align-self: flex-end;
+  }
+}

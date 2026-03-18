@@ -62,24 +62,88 @@ export class Component {
 
 /**
  * WorkoutForm コンポーネント
- * ワークアウト入力フォーム
+ * ワークアウト入力フォーム（過去の記録＆次回の予定対応）
  */
 export class WorkoutForm extends Component {
+  constructor(elementId, state = {}) {
+    super(elementId, state);
+    // デフォルト状態を設定
+    if (!this.state.workoutType) {
+      this.state.workoutType = 'past'; // 'past' or 'future'
+    }
+    if (!this.state.date) {
+      const today = new Date();
+      this.state.date = today.toISOString().split('T')[0]; // YYYY-MM-DD形式
+    }
+  }
+
   template() {
+    const dateInput = document.getElementById('workoutDate');
+    const currentDate = this.state.date || new Date().toISOString().split('T')[0];
+    
     return `
       <div class="workout-form">
-        <label>トレーニング名</label>
-        <input type="text" id="workoutName" placeholder="例: 胸トレーニング">
-        
-        <label>トレーニング説明</label>
-        <textarea id="workoutDescription" placeholder="トレーニング内容の説明"></textarea>
-        
+        <div class="form-header">
+          <h3>トレーニング情報を入力</h3>
+          <div class="workout-type-toggle">
+            <button class="type-btn ${this.state.workoutType === 'past' ? 'active' : ''}" 
+                    data-type="past" onclick="this.parentElement.parentElement.parentElement.parentElement.dispatchEvent(new CustomEvent('changeType', {detail: {type: 'past'}}))">
+              📋 過去の記録
+            </button>
+            <button class="type-btn ${this.state.workoutType === 'future' ? 'active' : ''}" 
+                    data-type="future" onclick="this.parentElement.parentElement.parentElement.parentElement.dispatchEvent(new CustomEvent('changeType', {detail: {type: 'future'}}))">
+              📅 次回の予定
+            </button>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label>トレーニング名</label>
+          <input type="text" id="workoutName" placeholder="例: 胸トレーニング">
+        </div>
+
+        <div class="form-section">
+          <label>トレーニング説明</label>
+          <textarea id="workoutDescription" placeholder="トレーニング内容の説明"></textarea>
+        </div>
+
+        <div class="form-section">
+          <label>${this.state.workoutType === 'past' ? '📅 トレーニング日時' : '📅 予定日時'}</label>
+          <input type="datetime-local" id="workoutDate" value="${currentDate}T12:00">
+          
+          ${this.state.workoutType === 'future' ? `
+            <div class="quickdate-buttons">
+              <button class="btn btn-sm" onclick="document.getElementById('workoutDate').value = '${this.getTomorrowDateTime()}'; this.parentElement.parentElement.dispatchEvent(new CustomEvent('dateUpdated'))">🗓️ 明日</button>
+              <button class="btn btn-sm" onclick="document.getElementById('workoutDate').value = '${this.getAfterTomorrowDateTime()}'; this.parentElement.parentElement.dispatchEvent(new CustomEvent('dateUpdated'))">🗓️ 明後日</button>
+              <button class="btn btn-sm" onclick="document.getElementById('workoutDate').value = '${this.getNextWeekDateTime()}'; this.parentElement.parentElement.dispatchEvent(new CustomEvent('dateUpdated'))">🗓️ 来週</button>
+            </div>
+          ` : ''}
+        </div>
+
         <div class="button-group">
-          <button id="submitBtn" class="btn btn-primary">登録</button>
+          <button id="submitBtn" class="btn btn-primary">✓ 登録する</button>
           <button id="clearBtn" class="btn btn-ghost">クリア</button>
         </div>
       </div>
     `;
+  }
+
+  getTomorrowDateTime() {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().slice(0, 16);
+  }
+
+  getAfterTomorrowDateTime() {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    return date.toISOString().slice(0, 16);
+  }
+
+  getNextWeekDateTime() {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().slice(0, 16);
   }
 
   afterRender() {
@@ -88,20 +152,36 @@ export class WorkoutForm extends Component {
 
     submitBtn?.addEventListener('click', () => this.handleSubmit());
     clearBtn?.addEventListener('click', () => this.handleClear());
+
+    // タイプ変更イベント
+    if (this.element) {
+      this.element.addEventListener('changeType', (e) => {
+        this.setState({ workoutType: e.detail.type });
+      });
+    }
   }
 
   handleSubmit() {
     const name = document.getElementById('workoutName')?.value;
     const description = document.getElementById('workoutDescription')?.value;
+    const dateInput = document.getElementById('workoutDate')?.value;
 
-    if (!name || !description) {
-      alert('トレーニング名と説明を入力してください');
+    if (!name || !description || !dateInput) {
+      alert('トレーニング名、説明、日時を入力してください');
       return;
     }
 
+    // ISO形式の日時に変換
+    const datetime = new Date(dateInput).toISOString();
+
     // コンポーネント外で処理を行うためのイベント発行
     const event = new CustomEvent('submit', {
-      detail: { name, description },
+      detail: { 
+        name, 
+        description, 
+        datetime,
+        type: this.state.workoutType,
+      },
     });
     this.element.dispatchEvent(event);
   }
@@ -109,6 +189,7 @@ export class WorkoutForm extends Component {
   handleClear() {
     document.getElementById('workoutName').value = '';
     document.getElementById('workoutDescription').value = '';
+    document.getElementById('workoutDate').value = new Date().toISOString().slice(0, 16);
   }
 }
 
