@@ -297,6 +297,16 @@ textarea {
   min-width: 80px;
 }
 
+.btn.active {
+  background: rgba(74, 163, 255, 0.2);
+  border-color: var(--acc);
+  color: var(--acc);
+}
+
+.btn.active:hover {
+  background: rgba(74, 163, 255, 0.3);
+}
+
 .row {
   display: flex;
   gap: 8px;

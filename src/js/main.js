@@ -227,11 +227,29 @@ class HevyWorkoutApp {
    * Hevy API キーを設定
    */
   async handleSetHevyApiKey() {
-    const apiKey = prompt('Hevy API キーを入力してください:');
-    if (!apiKey) return;
+    const apiKeyInput = document.getElementById('hevyApiKey');
+    let apiKey = apiKeyInput?.value || '';
+
+    // 入力フィールドが空ならプロンプトで取得
+    if (!apiKey) {
+      apiKey = prompt('Hevy API キーを入力してください:');
+      if (!apiKey) return;
+    }
 
     Storage.saveApiKey('hevy', apiKey);
     await this.initializeHevyAPI(apiKey);
+
+    // UI を更新
+    if (apiKeyInput) {
+      apiKeyInput.value = '●●●●●■■■■■'; // マスク表示
+    }
+
+    const statusDiv = document.getElementById('hevyApiStatus');
+    if (statusDiv) {
+      statusDiv.innerHTML = '✅ Hevy API が正常に接続されました';
+      statusDiv.style.color = 'var(--ok)';
+    }
+
     alert('✅ Hevy API キーを保存しました');
   }
 
@@ -239,11 +257,29 @@ class HevyWorkoutApp {
    * Gemini API キーを設定
    */
   async handleSetGeminiApiKey() {
-    const apiKey = prompt('Google Gemini API キーを入力してください:');
-    if (!apiKey) return;
+    const apiKeyInput = document.getElementById('geminiApiKey');
+    let apiKey = apiKeyInput?.value || '';
+
+    // 入力フィールドが空ならプロンプトで取得
+    if (!apiKey) {
+      apiKey = prompt('Google Gemini API キーを入力してください:');
+      if (!apiKey) return;
+    }
 
     Storage.saveApiKey('gemini', apiKey);
     await this.initializeGeminiAPI(apiKey);
+
+    // UI を更新
+    if (apiKeyInput) {
+      apiKeyInput.value = '●●●●●■■■■■'; // マスク表示
+    }
+
+    const statusDiv = document.getElementById('geminiApiStatus');
+    if (statusDiv) {
+      statusDiv.innerHTML = '✅ Gemini API が正常に接続されました';
+      statusDiv.style.color = 'var(--ok)';
+    }
+
     alert('✅ Gemini API キーを保存しました');
   }
 
@@ -412,6 +448,82 @@ class HevyWorkoutApp {
       console.error('❌ Workout submission error:', error);
       alert(`❌ エラーが発生しました: ${error.message}`);
     }
+  }
+
+  /**
+   * ワークアウト履歴を表示
+   * @param {string} type - 'past' または 'future'
+   */
+  showWorkoutHistory(type) {
+    const container = document.getElementById('workoutHistoryContainer');
+    if (!container) return;
+
+    const workouts = type === 'past' ? this.workoutHistory : this.futureWorkouts;
+    const pastBtn = document.getElementById('historyPastBtn');
+    const futureBtn = document.getElementById('historyFutureBtn');
+
+    // ボタンのアクティブ状態を更新
+    if (pastBtn && futureBtn) {
+      pastBtn.classList.toggle('active', type === 'past');
+      futureBtn.classList.toggle('active', type === 'future');
+    }
+
+    if (workouts.length === 0) {
+      container.innerHTML = `<p style="text-align: center; color: var(--muted);">
+        ${type === 'past' ? '📋 過去のワークアウト記録がありません' : '📅 次回のワークアウト予定はありません'}
+      </p>`;
+      return;
+    }
+
+    const html = workouts.map((workout, index) => {
+      const dateObj = new Date(workout.datetime);
+      const dateStr = dateObj.toLocaleString('ja-JP');
+      const exerciseCount = workout.exercises?.length || 0;
+
+      return `
+        <div style="padding: 10px; background: #0e141b; border: 1px solid #263648; border-radius: 6px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+              <div style="font-weight: 600; margin-bottom: 4px;">${workout.name}</div>
+              <div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">
+                📅 ${dateStr}
+              </div>
+              <div style="font-size: 0.8rem; color: var(--muted);">
+                💪 ${exerciseCount} 種目
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; flex-direction: column;">
+              <button class="btn btn-sm" style="font-size: 0.7rem;" onclick="alert('編集機能は近日実装予定です')">✏️ 編集</button>
+              <button class="btn btn-sm" style="font-size: 0.7rem;" onclick="app.deleteWorkout('${workout.id}')">🗑️ 削除</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = html;
+  }
+
+  /**
+   * ワークアウトを削除
+   * @param {string} workoutId - ワークアウト ID
+   */
+  deleteWorkout(workoutId) {
+    if (!confirm('このワークアウトを削除しますか？')) return;
+
+    const history = Storage.getWorkoutHistory().filter(w => w.id !== workoutId);
+    Storage.saveWorkoutHistory(history);
+
+    // メモリから削除
+    this.workoutHistory = this.workoutHistory.filter(w => w.id !== workoutId);
+    this.futureWorkouts = this.futureWorkouts.filter(w => w.id !== workoutId);
+
+    console.log('✅ Workout deleted:', workoutId);
+    alert('✅ ワークアウトが削除されました');
+
+    // リストを再表示
+    const currentType = document.getElementById('historyPastBtn')?.classList.contains('active') ? 'past' : 'future';
+    this.showWorkoutHistory(currentType);
   }
 }
 

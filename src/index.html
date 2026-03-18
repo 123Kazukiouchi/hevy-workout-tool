@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HEVY ワークアウト登録ツール v7.0</title>
+  <link rel="stylesheet" href="src/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header>
+      <h1>🏋️ HEVY ワークアウト登録ツール</h1>
+      <p class="subtitle">v7.0 - Hevy API 連携 × AI による自動解析 × モダンな UI</p>
+    </header>
+
+    <!-- API キー設定パネル -->
+    <div class="card" id="apiConfigCard">
+      <div class="card-header" onclick="document.getElementById('apiConfigCard').classList.toggle('collapsed')">
+        <h2>🔑 API設定</h2>
+        <span class="expand-icon">⋞</span>
+      </div>
+      <div class="card-content">
+        <div class="form-section">
+          <label>🏋️ Hevy API キー</label>
+          <input type="password" id="hevyApiKey" placeholder="API キーを入力..." autocomplete="off" />
+          <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-ghost" id="hevyApiKeyClear" onclick="clearHevyApiKey()">クリア</button>
+            <button class="btn btn-primary" id="hevyApiKeySave" onclick="saveHevyApiKey()">保存 & 接続テスト</button>
+          </div>
+          <div id="hevyApiStatus" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted);"></div>
+        </div>
+
+        <div class="form-section">
+          <label>✨ Google Gemini API キー</label>
+          <input type="password" id="geminiApiKey" placeholder="API キーを入力..." autocomplete="off" />
+          <p style="margin: 4px 0 0; font-size: 0.75rem; color: var(--muted);">
+            自然言語テキストの解析に必要です。<a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #7c3aed;">Google AI Studio</a> から無料で取得できます。
+          </p>
+          <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-ghost" id="geminiApiKeyClear" onclick="clearGeminiApiKey()">クリア</button>
+            <button class="btn btn-ai" id="geminiApiKeySave" onclick="saveGeminiApiKey()">保存 & テスト</button>
+          </div>
+          <div id="geminiApiStatus" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップインジケーター -->
+    <div id="stepIndicator" style="margin-bottom: 16px;"></div>
+
+    <!-- ステップ 1: ワークアウト情報入力 -->
+    <div class="card" id="step1Card">
+      <div class="card-header" onclick="document.getElementById('step1Card').classList.toggle('collapsed')">
+        <h2>📝 Step 1: ワークアウト情報を入力</h2>
+        <span class="expand-icon">⋞</span>
+      </div>
+      <div class="card-content">
+        <div id="workoutForm"></div>
+        <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+          <button class="btn btn-primary" onclick="app.submitWorkout()">📤 Hevy に登録</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ 2: エクササイズ追加 -->
+    <div class="card" id="step2Card">
+      <div class="card-header" onclick="document.getElementById('step2Card').classList.toggle('collapsed')">
+        <h2>💪 Step 2: エクササイズを追加</h2>
+        <span class="expand-icon">⋞</span>
+      </div>
+      <div class="card-content">
+        <div id="exerciseList"></div>
+      </div>
+    </div>
+
+    <!-- ステップ 3: AI による自動解析 -->
+    <div class="card" id="step3Card">
+      <div class="card-header" onclick="document.getElementById('step3Card').classList.toggle('collapsed')">
+        <h2>✨ Step 3: AI で自動解析（オプション）</h2>
+        <span class="expand-icon">⋞</span>
+      </div>
+      <div class="card-content">
+        <div id="aiAssistant"></div>
+      </div>
+    </div>
+
+    <!-- ワークアウト履歴 -->
+    <div class="card">
+      <div class="card-header" onclick="this.parentElement.classList.toggle('collapsed')">
+        <h2>📋 登録済みワークアウト</h2>
+        <span class="expand-icon">⋞</span>
+      </div>
+      <div class="card-content">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <button class="btn" onclick="showWorkoutHistory('past')" id="historyPastBtn">📋 過去の記録</button>
+          <button class="btn" onclick="showWorkoutHistory('future')" id="historyFutureBtn">📅 次回の予定</button>
+        </div>
+        <div id="workoutHistoryContainer"></div>
+      </div>
+    </div>
+
+    <!-- フッター -->
+    <footer style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #1e2a36; text-align: center; color: var(--muted); font-size: 0.75rem;">
+      <p>HEVY Workout Tool v7.0 | <a href="https://github.com/123Kazukiouchi/hevy-workout-tool" target="_blank" style="color: var(--acc);">GitHub</a></p>
+    </footer>
+  </div>
+
+  <!-- モジュールのスクリプト -->
+  <script type="module">
+    import HevyWorkoutApp from './src/js/main.js';
+    
+    // グローバルに公開（HTML イベントハンドラーから呼び出し可能に）
+    window.saveHevyApiKey = function() {
+      const apiKey = document.getElementById('hevyApiKey')?.value;
+      if (!apiKey) {
+        alert('API キーを入力してください');
+        return;
+      }
+      // app.handleSetHevyApiKey() を呼び出す
+      if (window.app) {
+        document.getElementById('hevyApiKey').value = apiKey;
+        window.app.handleSetHevyApiKey();
+      }
+    };
+
+    window.clearHevyApiKey = function() {
+      document.getElementById('hevyApiKey').value = '';
+      if (window.app) {
+        window.app.handleClearHevyApiKey?.();
+      }
+    };
+
+    window.saveGeminiApiKey = function() {
+      const apiKey = document.getElementById('geminiApiKey')?.value;
+      if (!apiKey) {
+        alert('API キーを入力してください');
+        return;
+      }
+      if (window.app) {
+        window.app.handleSetGeminiApiKey();
+      }
+    };
+
+    window.clearGeminiApiKey = function() {
+      document.getElementById('geminiApiKey').value = '';
+      if (window.app) {
+        window.app.handleClearGeminiApiKey?.();
+      }
+    };
+
+    window.showWorkoutHistory = function(type) {
+      if (window.app) {
+        app.showWorkoutHistory(type);
+      }
+    };
+
+    // アプリ起動
+    window.addEventListener('DOMContentLoaded', function() {
+      // 保存されたAPIキーをフォームに入力
+      const hevyKey = localStorage.getItem('hevy_api_key');
+      if (hevyKey) {
+        document.getElementById('hevyApiKey').value = '●●●●●■■■■■'; // マスク表示
+      }
+
+      const geminiKey = localStorage.getItem('gemini_api_key');
+      if (geminiKey) {
+        document.getElementById('geminiApiKey').value = '●●●●●■■■■■'; // マスク表示
+      }
+    });
+  </script>
+</body>
+</html>
