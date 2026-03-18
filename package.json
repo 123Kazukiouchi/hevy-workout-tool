@@ -1,0 +1,30 @@
+{
+  "name": "hevy-workout-tool",
+  "version": "7.0.0",
+  "description": "Hevyの過去・未来のワークアウトを自動登録できるWebツール。AI活用で入力を簡略化し、モダンなUI/UXを実現。",
+  "main": "src/js/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Development mode - open src/index.html in browser'",
+    "build": "echo 'Build feature coming soon'",
+    "lint": "echo 'Linting feature coming soon'",
+    "test": "echo 'Testing feature coming soon'"
+  },
+  "keywords": [
+    "hevy",
+    "workout",
+    "fitness",
+    "api",
+    "ai",
+    "japanese"
+  ],
+  "author": "Kazuki Ouchi",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1"
+  },
+  "dependencies": {
+    "dotenv": "^21.0.0"
+  }
+}
